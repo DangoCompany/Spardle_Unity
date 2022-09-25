@@ -6,6 +6,7 @@ using Photon.Pun;
 
 public class CardManager : MonoBehaviourPunCallbacks
 {
+    public static CardManager Instance;
     //追加したら随時更新すべし
     private static readonly int FigureShapeNum = 4;
     private static readonly Color32[] FigureColors =
@@ -33,9 +34,17 @@ public class CardManager : MonoBehaviourPunCallbacks
     [SerializeField] private Card _cardPrefab;
     [SerializeField] private Table _playerTable;
     [SerializeField] private Table _enemyTable;
+    [SerializeField] private Deck _playerDeck;
+    [SerializeField] private Deck _enemyDeck;
+    [SerializeField] private HalfDeck _playerTopHalfDeck;
+    [SerializeField] private HalfDeck _playerBottomHalfDeck;
+    [SerializeField] private HalfDeck _enemyTopHalfDeck;
+    [SerializeField] private HalfDeck _enemyBottomHalfDeck;
     private int _cardsNum = TotalCardsNum;
     private int _playerDeckNum = TotalCardsNum / 2;
+    public int PlayerDeckNum { get => _playerDeckNum; }
     private int _enemyDeckNum = TotalCardsNum / 2;
+    public int EnemyDeckNum { get => _enemyDeckNum; }
     private List<int[]> _playerDeckData = new List<int[]>(TotalCardsNum);
     private List<int[]> _enemyDeckData = new List<int[]>(TotalCardsNum);
     private int[] _playerFigureData;
@@ -52,6 +61,17 @@ public class CardManager : MonoBehaviourPunCallbacks
     private bool _canRespond;
     private List<int> _exceptedCardDataNums = new List<int>(CardDatasNum);
 
+    private void Awake()
+    {
+        if(Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
     private void Start()
     {
         if (PhotonNetwork.IsMasterClient)
@@ -314,8 +334,6 @@ public class CardManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void UpdateGameFlags()
     {
-        Debug.LogError("PlayerDeckNumber: " + _playerDeckNum);
-        Debug.LogError("EnemyDeckNumber: " + _enemyDeckNum);
         _canPushEachRGBButton = new bool[] { false, false, false };
         if(_playerFigureData != null && _enemyFigureData != null)
         {
@@ -356,6 +374,16 @@ public class CardManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void PickUpDiscardPile()
     {
+        if(_playerCard != null)
+        {
+            _playerCard.PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
+            _playerCard = null;
+        }
+        if(_enemyCard != null)
+        {
+            _enemyCard.PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
+            _enemyCard = null;
+        }
         _cardsNum += _playerPlayedData.Count + _enemyPlayedData.Count;
         _playerDeckNum += _playerPlayedData.Count + _enemyPlayedData.Count;
         _playerDeckData.AddRange(_playerPlayedData);
@@ -364,22 +392,22 @@ public class CardManager : MonoBehaviourPunCallbacks
         _enemyFigureData = null;
         _playerPlayedData.Clear();
         _enemyPlayedData.Clear();
-        if(_playerCard != null)
-        {
-            Destroy(_playerCard.gameObject);
-        }
-        _playerCard = null;
         _playerCardData = null;
-        if(_enemyCard != null)
-        {
-            Destroy(_enemyCard.gameObject);
-        }
-        _enemyCard = null;
         _enemyCardData = null;
     }
     [PunRPC]
     private void EnemyPickUpDiscardPile()
     {
+        if(_playerCard != null)
+        {
+            _playerCard.PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
+            _playerCard = null;
+        }
+        if(_enemyCard != null)
+        {
+            _enemyCard.PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
+            _enemyCard = null;
+        }
         _cardsNum += _playerPlayedData.Count + _enemyPlayedData.Count;
         _enemyDeckNum += _playerPlayedData.Count + _enemyPlayedData.Count;
         _enemyDeckData.AddRange(_playerPlayedData);
@@ -388,17 +416,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         _enemyFigureData = null;
         _playerPlayedData.Clear();
         _enemyPlayedData.Clear();
-        if (_playerCard != null)
-        {
-            Destroy(_playerCard.gameObject);
-        }
-        _playerCard = null;
         _playerCardData = null;
-        if (_enemyCard != null)
-        {
-            Destroy(_enemyCard.gameObject);
-        }
-        _enemyCard = null;
         _enemyCardData = null;
     }
     [PunRPC]
