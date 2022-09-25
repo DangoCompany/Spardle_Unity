@@ -6,10 +6,6 @@ public class HalfDeck : MonoBehaviour
     private static readonly float QuarterShuffleTime = 0.1f;
     [SerializeField] private Deck _deck;
 
-    private void Start()
-    {
-        Shuffle(1);
-    }
     public void Shuffle(int shuffleCount)
     {
         Sequence sequence = DOTween.Sequence();
@@ -17,10 +13,10 @@ public class HalfDeck : MonoBehaviour
         {
             sequence
                 .Append(transform.DOLocalMove(new Vector3(64, 0, 0), QuarterShuffleTime).SetEase(Ease.OutSine))
-                .AppendCallback(() => transform.SetSiblingIndex(0))
+                .AppendCallback(() => transform.SetSiblingIndex(1))
                 .Append(transform.DOLocalMove(new Vector3(-4, -4, 0), QuarterShuffleTime).SetEase(Ease.InSine))
                 .Append(transform.DOLocalMove(new Vector3(-64, 0, 0), QuarterShuffleTime).SetEase(Ease.OutSine))
-                .AppendCallback(() => transform.SetSiblingIndex(1))
+                .AppendCallback(() => transform.SetSiblingIndex(2))
                 .Append(transform.DOLocalMove(new Vector3(4, 4, 0), QuarterShuffleTime).SetEase(Ease.InSine));
         }
         else
