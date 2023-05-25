@@ -19,21 +19,25 @@ public class OnlineManager : MonoBehaviourPunCallbacks
             }
         }
     }
+
     public void OnClickTwoPlayer()
     {
-        //PhotonServerSettingsの設定内容を使ってマスターサーバーへ接続する
+        // PhotonServerSettingsの設定内容を使ってマスターサーバーへ接続する
         PhotonNetwork.ConnectUsingSettings();
     }
-    //マスターサーバーへの接続が成功したときに呼ばれるコールバック
+
+    // マスターサーバーへの接続が成功したときに呼ばれるコールバック
     public override void OnConnectedToMaster()
     {
         PhotonNetwork.JoinRandomRoom();
     }
-    //ゲームサーバーへの接続が成功したときに呼ばれるコールバック
+
+    // ゲームサーバーへの接続が成功したときに呼ばれるコールバック
     public override void OnJoinedRoom()
     {
         _isInRoom = true;
     }
+
     public override void OnJoinRandomFailed(short returnCode, string message)
     {
         PhotonNetwork.CreateRoom(null, new RoomOptions() { MaxPlayers = MaxPlayerNum }, TypedLobby.Default);

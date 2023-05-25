@@ -1,69 +1,68 @@
+using System;
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Photon.Pun;
+using UniRx;
+using Random = UnityEngine.Random;
 
 public class CardManager : MonoBehaviourPunCallbacks
 {
     public static CardManager Instance;
-    //追加したら随時更新すべし
+
+    private static readonly int TableCount = 3;
+
+    // 追加したら随時更新すべし
     private static readonly int FigureShapeNum = 4;
+
     private static readonly Color32[] FigureColors =
     {
-        //赤
+        // 赤
         new Color32(230, 0, 51, 255),
-        //緑
+        // 緑
         new Color32(62, 179, 112, 255),
-        //青
+        // 青
         new Color32(0, 149, 217, 255)
     };
-    //追加したら随時更新すべし
-    private static readonly int CardDatasNum = 3;
+
+    // 追加したら随時更新すべし
+    private static readonly int CardDataNum = 4;
     private static readonly int TotalCardsNum = FigureShapeNum * FigureColors.Length;
-    private static readonly float RespondTime = 5f;
-    private static readonly Dictionary<string, int> KeyToColorNumDic = new Dictionary<string, int>
-    {
-        { "z", 0 },
-        { "x", 1 },
-        { "c", 2 }
-    };
-    [SerializeField] private Sprite[] _images0;
-    [SerializeField] private Sprite[] _images1;
-    [SerializeField] private CardData[] _cardDatas;
+    [SerializeField] private Sprite[] _cardShapes;
+    [SerializeField] private CardData[] _cardData;
     [SerializeField] private Card _cardPrefab;
-    [SerializeField] private Table _playerTable;
-    [SerializeField] private Table _enemyTable;
+    [SerializeField] private Table[] _playerTables;
+    [SerializeField] private Table[] _enemyTables;
     [SerializeField] private Deck _playerDeck;
     [SerializeField] private Deck _enemyDeck;
     [SerializeField] private HalfDeck _playerTopHalfDeck;
     [SerializeField] private HalfDeck _playerBottomHalfDeck;
     [SerializeField] private HalfDeck _enemyTopHalfDeck;
     [SerializeField] private HalfDeck _enemyBottomHalfDeck;
-    private int _cardsNum = TotalCardsNum;
     private int _playerDeckNum = TotalCardsNum / 2;
-    public int PlayerDeckNum { get => _playerDeckNum; }
+    public int PlayerDeckNum => _playerDeckNum;
     private int _enemyDeckNum = TotalCardsNum / 2;
-    public int EnemyDeckNum { get => _enemyDeckNum; }
+
+    public int EnemyDeckNum => _enemyDeckNum;
+
+    // {Shape, Color}
     private List<int[]> _playerDeckData = new List<int[]>(TotalCardsNum);
     private List<int[]> _enemyDeckData = new List<int[]>(TotalCardsNum);
-    private int[] _playerFigureData;
-    private int[] _enemyFigureData;
-    private CardData _playerCardData;
-    private CardData _enemyCardData;
+    private CardData[] _playerCardData = new CardData[TableCount];
+
+    private CardData[] _enemyCardData = new CardData[TableCount];
+
+    // {Index, Shape, Color}
     private List<int[]> _playerPlayedData = new List<int[]>(TotalCardsNum);
     private List<int[]> _enemyPlayedData = new List<int[]>(TotalCardsNum);
-    private Card _playerCard;
-    private Card _enemyCard;
-    private bool[] _canPushEachRGBButton;
-    private Coroutine _limitRespondTimeCoroutine;
-    private int _colorNumToRespond;
-    private bool _canRespond;
-    private List<int> _exceptedCardDataNums = new List<int>(CardDatasNum);
+    private Card[] _playerCards = new Card[TableCount];
+    private Card[] _enemyCards = new Card[TableCount];
+    private List<int> _exceptedCardDataNums = new List<int>(CardDataNum);
+    private int _tableNumberToPlace;
 
     private void Awake()
     {
-        if(Instance == null)
+        if (Instance == null)
         {
             Instance = this;
         }
@@ -72,6 +71,7 @@ public class CardManager : MonoBehaviourPunCallbacks
             Destroy(gameObject);
         }
     }
+
     private void Start()
     {
         if (PhotonNetwork.IsMasterClient)
@@ -79,14 +79,16 @@ public class CardManager : MonoBehaviourPunCallbacks
             DealCardsToPlayers();
             Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(_playerDeckNum);
             Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(_enemyDeckNum);
-            for(int i = 0; i < _playerDeckNum; i++)
+            for (int i = 0; i < _playerDeckNum; i++)
             {
                 playerDeckDataDic.Add(i, _playerDeckData[i]);
                 enemyDeckDataDic.Add(i, _enemyDeckData[i]);
             }
+
             photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic);
         }
     }
+
     private void Update()
     {
         if (Input.anyKeyDown)
@@ -96,127 +98,67 @@ public class CardManager : MonoBehaviourPunCallbacks
                 int cardDataNum;
                 int figureNum = Random.Range(0, _playerDeckNum);
                 int[] figureData = _playerDeckData[figureNum];
-                int[] CnNums = { 0, 0 };
-                if (_playerCard != null)
+                int[] cnNums = { 0, 0 };
+                DecideTableNumber();
+                if (_playerCards[_tableNumberToPlace] != null)
                 {
-                    Destroy(_playerCard.gameObject);
+                    Destroy(_playerCards[_tableNumberToPlace].gameObject);
                 }
-                if(_enemyCardData != null)
+
+                if (_playerCardData
+                    .Where(data => data != null)
+                    .Any(data => data.Effect == CardData.CardEffect.Exchange))
                 {
-                    if(_enemyCardData.Effect == CardData.CardEffect.Substitute)
+                    // Exchangeを表している。要改修
+                    _exceptedCardDataNums.Add(0);
+                }
+
+                if (_playerCardData
+                        .Where(data => data != null)
+                        .Any(data => data.Effect == CardData.CardEffect.Substitute) ||
+                    _enemyCardData
+                        .Where(data => data != null)
+                        .Any(data => data.Effect == CardData.CardEffect.Substitute))
+                {
+                    // Substituteを表している。要改修
+                    _exceptedCardDataNums.Add(3);
+                }
+
+                cardDataNum = DecideCardDataNumber();
+                if (_cardData != null)
+                {
+                    if (_cardData[cardDataNum].Effect == CardData.CardEffect.Exchange ||
+                        _cardData[cardDataNum].Effect == CardData.CardEffect.Substitute)
                     {
-                        _exceptedCardDataNums.Add(2);
+                        List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
+                        cnNums[0] = Random.Range(0, 3);
+                        colorIndexes.RemoveAt(cnNums[0]);
+                        cnNums[1] = colorIndexes[Random.Range(0, 2)];
+                    }
+                    else if (_cardData[cardDataNum].Effect == CardData.CardEffect.Respond)
+                    {
+                        cnNums[0] = Random.Range(0, 3);
+                        cnNums[1] = Random.Range(0, 3);
                     }
                 }
-                cardDataNum = DecideCardDataNumber();
-                if (_cardDatas[cardDataNum].Effect == CardData.CardEffect.Exchange ||
-                    _cardDatas[cardDataNum].Effect == CardData.CardEffect.Substitute)
-                {
-                    List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
-                    CnNums[0] = Random.Range(0, 3);
-                    colorIndexes.RemoveAt(CnNums[0]);
-                    CnNums[1] = colorIndexes[Random.Range(0, 2)];
-                }
-                else if (_cardDatas[cardDataNum].Effect == CardData.CardEffect.Respond)
-                {
-                    CnNums[0] = Random.Range(0, 3);
-                    CnNums[1] = Random.Range(0, 3);
-                }
-                (_playerCard, _playerCardData) = GenerateCard(cardDataNum, figureData, CnNums);
-                _playerTable.SetCardPos(_playerCard);
-                _playerFigureData = new int[]
-                {
-                figureData[0] % 2,
-                Mathf.FloorToInt(figureData[0] / 2),
-                figureData[1]
-                };
-                _playerPlayedData.Add(figureData);
-                _cardsNum--;
+
+                (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
+                    GenerateCard(cardDataNum, figureData, cnNums);
+                Card card = _playerCards[_tableNumberToPlace];
+                int tableNumber = _tableNumberToPlace;
+                _playerCards[_tableNumberToPlace].OnClickCard
+                    .Subscribe(delta => OnReceiveCardAction(delta, card, tableNumber))
+                    .AddTo(_playerCards[_tableNumberToPlace]);
+                _playerTables[_tableNumberToPlace].SetCardPos(_playerCards[_tableNumberToPlace]);
+                _playerPlayedData.Add(new int[] { _tableNumberToPlace, figureData[0], figureData[1] });
                 _playerDeckNum--;
                 _playerDeckData.Remove(figureData);
-                photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, CnNums);
-                photonView.RPC(nameof(UpdateGameFlags), RpcTarget.All);
-            }
-            else if (KeyToColorNumDic.ContainsKey(Input.inputString))
-            {
-                int selectedColorNum = KeyToColorNumDic[Input.inputString];
-                if(_enemyCardData != null)
-                {
-                    if (_enemyCardData.Effect == CardData.CardEffect.Exchange)
-                    {
-                        if (selectedColorNum == _enemyCard.ColorArgs[0])
-                        {
-                            selectedColorNum = _enemyCard.ColorArgs[1];
-                        }
-                        else if (selectedColorNum == _enemyCard.ColorArgs[1])
-                        {
-                            selectedColorNum = _enemyCard.ColorArgs[0];
-                        }
-                    }
-                }
-                if (_enemyCardData != null)
-                {
-                    if (_enemyCardData.Effect == CardData.CardEffect.Respond)
-                    {
-                        if (_enemyCard.ColorArgs[0] == selectedColorNum)
-                        {
-                            photonView.RPC(nameof(ReceiveRespondFlag), RpcTarget.Others);
-                        }
-                    }
-                }
-                if (_canRespond)
-                {
-                    if(_playerCardData != null)
-                    {
-                        if (_playerCardData.Effect == CardData.CardEffect.Substitute)
-                        {
-                            if (_colorNumToRespond == _playerCard.ColorArgs[0])
-                            {
-                                _colorNumToRespond = _playerCard.ColorArgs[1];
-                            }
-                        }
-                    }
-                    if (_enemyCardData != null)
-                    {
-                        if (_enemyCardData.Effect == CardData.CardEffect.Substitute)
-                        {
-                            if (_colorNumToRespond == _enemyCard.ColorArgs[0])
-                            {
-                                _colorNumToRespond = _enemyCard.ColorArgs[1];
-                            }
-                        }
-                    }
-                    if (selectedColorNum == _colorNumToRespond)
-                    {
-                        _canRespond = false;
-                        StopCoroutine(_limitRespondTimeCoroutine);
-                    }
-                    else
-                    {
-                        if (_canPushEachRGBButton[selectedColorNum])
-                        {
-                            PushCorrectButton();
-                        }
-                        else
-                        {
-                            PushWrongButton();
-                        }
-                    }
-                }
-                else
-                {
-                    if (_canPushEachRGBButton[selectedColorNum])
-                    {
-                        PushCorrectButton();
-                    }
-                    else
-                    {
-                        PushWrongButton();
-                    }
-                }
+                photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
+                    _tableNumberToPlace);
             }
         }
     }
+
     private void DealCardsToPlayers()
     {
         int deckNum = TotalCardsNum / 2;
@@ -226,17 +168,19 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             playerCardIndexes.Add(i);
         }
-        while(leftCardsNum-- > deckNum)
+
+        while (leftCardsNum-- > deckNum)
         {
             int index = Random.Range(0, leftCardsNum);
             playerCardIndexes.RemoveAt(index);
         }
+
         for (int i = 0; i < FigureShapeNum; i++)
         {
             for (int j = 0; j < FigureColors.Length; j++)
             {
                 int[] data = { i, j };
-                if(playerCardIndexes.Contains(i * FigureColors.Length + j))
+                if (playerCardIndexes.Contains(i * FigureColors.Length + j))
                 {
                     _playerDeckData.Add(data);
                 }
@@ -247,183 +191,278 @@ public class CardManager : MonoBehaviourPunCallbacks
             }
         }
     }
+
+    private void DecideTableNumber()
+    {
+        if (_tableNumberToPlace == TableCount - 1)
+        {
+            _tableNumberToPlace = 0;
+        }
+        else
+        {
+            _tableNumberToPlace++;
+        }
+    }
+
     private int DecideCardDataNumber()
     {
-        List<int> availableNums = new List<int>(CardDatasNum);
-        for(int i = 0; i < CardDatasNum; i++)
+        List<int> availableNums = new List<int>(CardDataNum);
+        for (int i = 0; i < CardDataNum; i++)
         {
             availableNums.Add(i);
         }
+
         availableNums = availableNums.Except(_exceptedCardDataNums).ToList();
         _exceptedCardDataNums.Clear();
         return availableNums[Random.Range(0, availableNums.Count())];
     }
-    private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] CnNums)
+
+    private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums)
     {
-        CardData cardData = _cardDatas[cardDataNum];
-        Sprite figure;
-        if(figureData[0] % 2 == 0)
+        CardData cardData = _cardData[cardDataNum];
+        Sprite shape = _cardShapes[figureData[0]];
+        Color32 color = FigureColors[figureData[1]];
+        Card card = Instantiate(_cardPrefab);
+        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] });
+        card.SetCard(cardData, shape, color, cnNums);
+        return (card, cardData);
+    }
+
+    private void OnReceiveCardAction(Vector2 delta, Card card, int index)
+    {
+        Debug.Log("index: " + index);
+        Dictionary<int, Card> enemyCorrespondingCardsDict = _enemyCards
+            .Select((enemyCard, cardIndex) => new { Index = cardIndex, EnemyCard = enemyCard })
+            .Where(item => item.EnemyCard != null)
+            .Where(item => item.EnemyCard.ShapeNum == card.ShapeNum)
+            .ToDictionary(item => item.Index, item => item.EnemyCard);
+        if (enemyCorrespondingCardsDict.Count > 0)
         {
-            figure = _images0[figureData[0] / 2];
+            int selectedColorNum = GetSelectedColorNum(Mathf.Atan2(delta.y, delta.x));
+            Debug.Log("sel" + selectedColorNum);
+            int[] tmpCorrectColorNums = enemyCorrespondingCardsDict.Values
+                .Select(enemyCard =>
+                {
+                    if (enemyCard.ColorNum == card.ColorNum)
+                    {
+                        return card.ColorNum;
+                    }
+                    else
+                    {
+                        int[] allColorNums = { 0, 1, 2 };
+                        return allColorNums
+                            .Except(new[] { card.ColorNum, enemyCard.ColorNum }).First();
+                    }
+                })
+                .Distinct()
+                .ToArray();
+            Debug.Log("tmp_cor: " + string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray()));
+            int[] correctColorNums = GetCorrectColorNums(tmpCorrectColorNums);
+            Debug.Log("cor: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+            if (correctColorNums.Contains(selectedColorNum))
+            {
+                PushCorrectButton(new int[] { index }, enemyCorrespondingCardsDict.Keys.ToArray());
+                return;
+            }
+        }
+
+        PushWrongButton();
+    }
+
+    private int GetSelectedColorNum(float angle)
+    {
+        if (angle >= Mathf.PI / 6 && angle < Mathf.PI * 5 / 6)
+        {
+            return 0;
+        }
+        else if (angle >= Mathf.PI * 5 / 6 || angle < Mathf.PI * -1 / 2)
+        {
+            return 1;
         }
         else
         {
-            figure = _images1[(figureData[0] - 1) / 2];
+            return 2;
         }
-        Color32 color = FigureColors[figureData[1]];
-        Card card = Instantiate(_cardPrefab);
-        card.ColorArgs = new int[] { CnNums[0], CnNums[1] };
-        card.SetCard(cardData, figure, color, CnNums);
-        return (card, cardData);
     }
-    private void PushCorrectButton()
+
+    private int[] GetCorrectColorNums(int[] tmpCorrectColorNums)
     {
-        photonView.RPC(nameof(PickUpDiscardPile), RpcTarget.Others);
-        EnemyPickUpDiscardPile();
-        photonView.RPC(nameof(UpdateGameFlags), RpcTarget.All);
+        int[] correctColorNums = tmpCorrectColorNums;
+        Dictionary<int, Card> playerCardsDict = _playerCards
+            .Select((playerCard, index) => new { Index = index, PlayerCard = playerCard })
+            .Where(item => item.PlayerCard != null)
+            .ToDictionary(item => item.Index, item => item.PlayerCard);
+        Dictionary<int, Card> enemyCardsDict = _enemyCards
+            .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+            .Where(item => item.EnemyCard != null)
+            .ToDictionary(item => item.Index, item => item.EnemyCard);
+        foreach (var enemyCard in enemyCardsDict)
+        {
+            if (_enemyCardData[enemyCard.Key].Effect == CardData.CardEffect.Substitute)
+            {
+                Debug.Log("Enemy Substitute Found: " +
+                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                correctColorNums = correctColorNums
+                    .Select(value => SubstituteCorrectColor(value, _enemyCards[enemyCard.Key])).Distinct().ToArray();
+                Debug.Log("Enemy Substituted: " +
+                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+            }
+        }
+
+        foreach (var playerCard in playerCardsDict)
+        {
+            if (_playerCardData[playerCard.Key].Effect == CardData.CardEffect.Substitute)
+            {
+                Debug.Log("Player Substitute Found: " +
+                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                correctColorNums = correctColorNums
+                    .Select(value => SubstituteCorrectColor(value, _playerCards[playerCard.Key])).Distinct().ToArray();
+                Debug.Log("Player Substituted: " +
+                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+            }
+        }
+
+        foreach (var enemyCard in enemyCardsDict)
+        {
+            if (_enemyCardData[enemyCard.Key].Effect == CardData.CardEffect.Exchange)
+            {
+                Debug.Log("Exchange Found: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                correctColorNums = correctColorNums.Select(value => ExchangeCorrectColor(value, enemyCard.Key))
+                    .Distinct().ToArray();
+                Debug.Log("Exchanged: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+            }
+        }
+
+        return correctColorNums;
     }
+
+    private int ExchangeCorrectColor(int value, int index)
+    {
+        if (value == _enemyCards[index].ColorArgs[0])
+        {
+            Debug.Log("Exchanged: " + _enemyCards[index].ColorArgs[0] + " to " + _enemyCards[index].ColorArgs[1]);
+            return _enemyCards[index].ColorArgs[1];
+        }
+        else if (value == _enemyCards[index].ColorArgs[1])
+        {
+            Debug.Log("Exchanged: " + _enemyCards[index].ColorArgs[1] + " to " + _enemyCards[index].ColorArgs[0]);
+            return _enemyCards[index].ColorArgs[0];
+        }
+        else
+        {
+            return value;
+        }
+    }
+
+    private int SubstituteCorrectColor(int value, Card card)
+    {
+        if (value == card.ColorArgs[0])
+        {
+            Debug.Log("Substituted: " + card.ColorArgs[0] + " to " + card.ColorArgs[1]);
+            return card.ColorArgs[1];
+        }
+        else
+        {
+            return value;
+        }
+    }
+
+    private void PushCorrectButton(int[] playerCardsIndexes, int[] enemyCardsIndexes)
+    {
+        photonView.RPC(nameof(PickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
+        EnemyPickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
+    }
+
     private void PushWrongButton()
     {
-        PickUpDiscardPile();
-        photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others);
-        photonView.RPC(nameof(UpdateGameFlags), RpcTarget.All);
+        int[] playerCardsIndexes = _playerCards
+            .Select((playerCard, index) => new { Index = index, PlayerCard = playerCard })
+            .Where(item => item.PlayerCard != null)
+            .Select(item => item.Index)
+            .ToArray();
+        int[] enemyCardsIndexes = _enemyCards
+            .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+            .Where(item => item.EnemyCard != null)
+            .Select(item => item.Index)
+            .ToArray();
+        PickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
+        photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
     }
-    private IEnumerator LimitRespondTime()
-    {
-        yield return new WaitForSeconds(RespondTime);
-        _canRespond = false;
-        PickUpDiscardPile();
-        photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others);
-        photonView.RPC(nameof(UpdateGameFlags), RpcTarget.All);
-    }
+
     [PunRPC]
     private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic)
     {
-        for(int i = 0; i < playerDeckDataDic.Count; i++)
+        for (int i = 0; i < playerDeckDataDic.Count; i++)
         {
             _playerDeckData.Add(playerDeckDataDic[i]);
             _enemyDeckData.Add(enemyDeckDataDic[i]);
         }
     }
+
     [PunRPC]
-    private void PlayEnemyCard(int cardDataNum, int[] figureData, int[] CnNums)
+    private void PlayEnemyCard(int cardDataNum, int[] figureData, int[] cnNums, int tableNum)
     {
-        if(_enemyCard != null)
+        if (_enemyCards[tableNum] != null)
         {
-            Destroy(_enemyCard.gameObject);
+            Destroy(_enemyCards[tableNum].gameObject);
         }
-        (_enemyCard, _enemyCardData) = GenerateCard(cardDataNum, figureData, CnNums);
-        _enemyTable.SetCardPos(_enemyCard);
-        _enemyFigureData = new int[]
-        {
-            figureData[0] % 2,
-            Mathf.FloorToInt(figureData[0] / 2),
-            figureData[1]
-        };
-        _enemyPlayedData.Add(figureData);
-        _cardsNum--;
+
+        (_enemyCards[tableNum], _enemyCardData[tableNum]) = GenerateCard(cardDataNum, figureData, cnNums);
+        _enemyTables[tableNum].SetCardPos(_enemyCards[tableNum]);
+        _enemyPlayedData.Add(new int[] { tableNum, figureData[0], figureData[1] });
         _enemyDeckNum--;
-        for(int i = 0; i < _enemyDeckData.Count; i++)
-        {
-            if (_enemyDeckData[i].SequenceEqual(figureData))
-            {
-                _enemyDeckData.RemoveAt(i);
-            }
-        }
+        _enemyDeckData.RemoveAll(data => data.SequenceEqual(figureData));
     }
+
     [PunRPC]
-    private void UpdateGameFlags()
+    private void PickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
     {
-        _canPushEachRGBButton = new bool[] { false, false, false };
-        if(_playerFigureData != null && _enemyFigureData != null)
+        foreach (var i in playerCardsIndexes)
         {
-            if(_playerFigureData[0] != _enemyFigureData[0])
-            {
-                if(_playerFigureData[1] == _enemyFigureData[1])
-                {
-                    if(_playerFigureData[2] == _enemyFigureData[2])
-                    {
-                        _canPushEachRGBButton[_playerFigureData[2]] = true;
-                    }
-                    else
-                    {
-                        int[] tmp = { 0, 1, 2 };
-                        int colorNum = tmp.Single(_ => _ != _playerFigureData[2] && _ != _enemyFigureData[2]);
-                        _canPushEachRGBButton[colorNum] = true;
-                    }
-                }
-            }
-            if(_playerCardData.Effect == CardData.CardEffect.Substitute)
-            {
-                if (_canPushEachRGBButton[_playerCard.ColorArgs[0]])
-                {
-                    _canPushEachRGBButton[_playerCard.ColorArgs[0]] = false;
-                    _canPushEachRGBButton[_playerCard.ColorArgs[1]] = true;
-                }
-            }
-            else if(_enemyCardData.Effect == CardData.CardEffect.Substitute)
-            {
-                if (_canPushEachRGBButton[_enemyCard.ColorArgs[0]])
-                {
-                    _canPushEachRGBButton[_enemyCard.ColorArgs[0]] = false;
-                    _canPushEachRGBButton[_enemyCard.ColorArgs[1]] = true;
-                }
-            }
+            _playerCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
+            _playerCards[i] = null;
+            _playerDeckData.AddRange(_playerPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList());
+            _playerPlayedData.RemoveAll(data => data[0] == i);
+            _playerCardData[i] = null;
         }
+
+        foreach (var i in enemyCardsIndexes)
+        {
+            _enemyCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
+            _enemyCards[i] = null;
+            _playerDeckData.AddRange(_enemyPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList());
+            _enemyPlayedData.RemoveAll(data => data[0] == i);
+            _enemyCardData[i] = null;
+        }
+
+        _playerDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
     }
+
     [PunRPC]
-    private void PickUpDiscardPile()
+    private void EnemyPickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
     {
-        if(_playerCard != null)
+        foreach (var i in playerCardsIndexes)
         {
-            _playerCard.PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
-            _playerCard = null;
+            _playerCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
+            _playerCards[i] = null;
+            _enemyDeckData.AddRange(_playerPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList());
+            _playerPlayedData.RemoveAll(data => data[0] == i);
+            _playerCardData[i] = null;
         }
-        if(_enemyCard != null)
+
+        foreach (var i in enemyCardsIndexes)
         {
-            _enemyCard.PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
-            _enemyCard = null;
+            _enemyCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
+            _enemyCards[i] = null;
+            _enemyDeckData.AddRange(_enemyPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList());
+            _enemyPlayedData.RemoveAll(data => data[0] == i);
+            _enemyCardData[i] = null;
         }
-        _cardsNum += _playerPlayedData.Count + _enemyPlayedData.Count;
-        _playerDeckNum += _playerPlayedData.Count + _enemyPlayedData.Count;
-        _playerDeckData.AddRange(_playerPlayedData);
-        _playerDeckData.AddRange(_enemyPlayedData);
-        _playerFigureData = null;
-        _enemyFigureData = null;
-        _playerPlayedData.Clear();
-        _enemyPlayedData.Clear();
-        _playerCardData = null;
-        _enemyCardData = null;
-    }
-    [PunRPC]
-    private void EnemyPickUpDiscardPile()
-    {
-        if(_playerCard != null)
-        {
-            _playerCard.PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
-            _playerCard = null;
-        }
-        if(_enemyCard != null)
-        {
-            _enemyCard.PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
-            _enemyCard = null;
-        }
-        _cardsNum += _playerPlayedData.Count + _enemyPlayedData.Count;
-        _enemyDeckNum += _playerPlayedData.Count + _enemyPlayedData.Count;
-        _enemyDeckData.AddRange(_playerPlayedData);
-        _enemyDeckData.AddRange(_enemyPlayedData);
-        _playerFigureData = null;
-        _enemyFigureData = null;
-        _playerPlayedData.Clear();
-        _enemyPlayedData.Clear();
-        _playerCardData = null;
-        _enemyCardData = null;
-    }
-    [PunRPC]
-    private void ReceiveRespondFlag()
-    {
-        _canRespond = true;
-        _colorNumToRespond = _playerCard.ColorArgs[1];
-        _limitRespondTimeCoroutine = StartCoroutine(LimitRespondTime());
+
+        _enemyDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
     }
 }
