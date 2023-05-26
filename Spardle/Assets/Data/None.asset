@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 79ca8744dd4b94e909d5f420c23627ee, type: 3}
   m_Name: None
   m_EditorClassIdentifier: 
-  _effect: 1
+  _effect: 2
   _effectName: "\u306A\u3057"
   _effectDescr: "\u53CC\u65B9\uFF1A\u7279\u306B\u306A\u3057"

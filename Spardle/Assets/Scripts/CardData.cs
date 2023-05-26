@@ -10,8 +10,8 @@ public class CardData : ScriptableObject
     public enum CardEffect
     {
         Exchange,
+        Illusion,
         None,
-        Respond,
         Substitute
     }
 

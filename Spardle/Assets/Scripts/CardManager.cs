@@ -135,10 +135,9 @@ public class CardManager : MonoBehaviourPunCallbacks
                         colorIndexes.RemoveAt(cnNums[0]);
                         cnNums[1] = colorIndexes[Random.Range(0, 2)];
                     }
-                    else if (_cardData[cardDataNum].Effect == CardData.CardEffect.Respond)
+                    else if (_cardData[cardDataNum].Effect == CardData.CardEffect.Illusion)
                     {
                         cnNums[0] = Random.Range(0, 3);
-                        cnNums[1] = Random.Range(0, 3);
                     }
                 }
 
@@ -230,7 +229,7 @@ public class CardManager : MonoBehaviourPunCallbacks
 
     private void OnReceiveCardAction(Vector2 delta, Card card, int index)
     {
-        Debug.Log("index: " + index);
+        Debug.Log("Clicked Card Index: " + index);
         Dictionary<int, Card> enemyCorrespondingCardsDict = _enemyCards
             .Select((enemyCard, cardIndex) => new { Index = cardIndex, EnemyCard = enemyCard })
             .Where(item => item.EnemyCard != null)
@@ -239,26 +238,48 @@ public class CardManager : MonoBehaviourPunCallbacks
         if (enemyCorrespondingCardsDict.Count > 0)
         {
             int selectedColorNum = GetSelectedColorNum(Mathf.Atan2(delta.y, delta.x));
-            Debug.Log("sel" + selectedColorNum);
-            int[] tmpCorrectColorNums = enemyCorrespondingCardsDict.Values
-                .Select(enemyCard =>
+            Debug.Log("Selected Color Num: " + selectedColorNum);
+            int[] tmpCorrectColorNums = enemyCorrespondingCardsDict
+                .Select(enemyCardPair =>
                 {
-                    if (enemyCard.ColorNum == card.ColorNum)
+                    int cardColorNum;
+                    int enemyCardColorNum;
+                    if (_playerCardData[index].Effect == CardData.CardEffect.Illusion)
                     {
-                        return card.ColorNum;
+                        Debug.Log("Illusion Player Card Color" + card.ColorNum + " to " + card.ColorArgs[0]);
+                        cardColorNum = card.ColorArgs[0];
+                    }
+                    else
+                    {
+                        cardColorNum = card.ColorNum;
+                    }
+
+                    if (_enemyCardData[enemyCardPair.Key].Effect == CardData.CardEffect.Illusion)
+                    {
+                        Debug.Log("Illusion Enemy Card Color" + enemyCardPair.Value.ColorNum + " to " + enemyCardPair.Value.ColorArgs[0]);
+                        enemyCardColorNum = enemyCardPair.Value.ColorArgs[0];
+                    }
+                    else
+                    {
+                        enemyCardColorNum = enemyCardPair.Value.ColorNum;
+                    }
+
+                    if (enemyCardColorNum == cardColorNum)
+                    {
+                        return cardColorNum;
                     }
                     else
                     {
                         int[] allColorNums = { 0, 1, 2 };
                         return allColorNums
-                            .Except(new[] { card.ColorNum, enemyCard.ColorNum }).First();
+                            .Except(new[] { cardColorNum, enemyCardColorNum }).First();
                     }
                 })
                 .Distinct()
                 .ToArray();
-            Debug.Log("tmp_cor: " + string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray()));
+            Debug.Log("Temporary Correct Color: " + string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray()));
             int[] correctColorNums = GetCorrectColorNums(tmpCorrectColorNums);
-            Debug.Log("cor: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+            Debug.Log("Correct Color: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
             if (correctColorNums.Contains(selectedColorNum))
             {
                 PushCorrectButton(new int[] { index }, enemyCorrespondingCardsDict.Keys.ToArray());

@@ -205,8 +205,8 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 383ae628f16e1446888af41d562931ba, type: 3}
   _cardData:
   - {fileID: 11400000, guid: 25b589de5125c45d9af961bd5604c8a6, type: 2}
+  - {fileID: 11400000, guid: 0593e867c0e7b48ab85ac2fd5543833c, type: 2}
   - {fileID: 11400000, guid: e045561cba8734b2c99723328b6f5fa8, type: 2}
-  - {fileID: 11400000, guid: aa6e774ba1763415295c3b4621a37174, type: 2}
   - {fileID: 11400000, guid: dc3502f87d6d34cc785817a0459ec6ae, type: 2}
   _cardPrefab: {fileID: 8110851937337636806, guid: 10dc31152e11b42d29ff18878f70c882, type: 3}
   _playerTables:
