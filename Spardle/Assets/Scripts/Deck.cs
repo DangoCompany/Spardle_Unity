@@ -6,16 +6,16 @@ public class Deck : MonoBehaviour
     {
         if (transform.position.y >= 0)
         {
-            Debug.Log("EnemyDeckNumber: " + CardManager.Instance.EnemyDeckNum);
+            Debug.Log($"EnemyDeckNumber: {CardManager.Instance.EnemyDeckNum}");
         }
         else
         {
-            Debug.Log("PlayerDeckNumber: " + CardManager.Instance.PlayerDeckNum);
+            Debug.Log($"PlayerDeckNumber: {CardManager.Instance.PlayerDeckNum}");
         }
     }
 
     public void OnPointerExit()
     {
-        Debug.Log("Exit");
+        Debug.Log("Deck Pointer Exit");
     }
 }

@@ -216,7 +216,7 @@ public class CardManager : MonoBehaviourPunCallbacks
 
     private void OnReceiveCardAction(Vector2 delta, Card card, int index)
     {
-        Debug.Log("Clicked Card Index: " + index);
+        Debug.Log($"Clicked Card Index: {index}");
         Dictionary<int, Card> enemyCorrespondingCardsDict = _enemyCards
             .Select((enemyCard, cardIndex) => new { Index = cardIndex, EnemyCard = enemyCard })
             .Where(item => item.EnemyCard != null)
@@ -225,7 +225,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         if (enemyCorrespondingCardsDict.Count > 0)
         {
             int selectedColorNum = GetSelectedColorNum(Mathf.Atan2(delta.y, delta.x));
-            Debug.Log("Selected Color Num: " + selectedColorNum);
+            Debug.Log($"Selected Color Num: {selectedColorNum}");
             int[] tmpCorrectColorNums = enemyCorrespondingCardsDict
                 .Select(enemyCardPair =>
                 {
@@ -233,7 +233,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                     int enemyCardColorNum;
                     if (_playerCardData[index].Effect == ConfigConstants.CardEffect.Illusion)
                     {
-                        Debug.Log("Illusion Player Card Color" + card.ColorNum + " to " + card.ColorArgs[0]);
+                        Debug.Log($"Illusion Player Card Color: {card.ColorNum} to {card.ColorArgs[0]}");
                         cardColorNum = card.ColorArgs[0];
                     }
                     else
@@ -243,8 +243,7 @@ public class CardManager : MonoBehaviourPunCallbacks
 
                     if (_enemyCardData[enemyCardPair.Key].Effect == ConfigConstants.CardEffect.Illusion)
                     {
-                        Debug.Log("Illusion Enemy Card Color" + enemyCardPair.Value.ColorNum + " to " +
-                                  enemyCardPair.Value.ColorArgs[0]);
+                        Debug.Log($"Illusion Enemy Card Color: {enemyCardPair.Value.ColorNum} to {enemyCardPair.Value.ColorArgs[0]}");
                         enemyCardColorNum = enemyCardPair.Value.ColorArgs[0];
                     }
                     else
@@ -265,10 +264,9 @@ public class CardManager : MonoBehaviourPunCallbacks
                 })
                 .Distinct()
                 .ToArray();
-            Debug.Log("Temporary Correct Color: " +
-                      string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray()));
+            Debug.Log($"Temporary Correct Color: {string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray())}");
             int[] correctColorNums = GetCorrectColorNums(tmpCorrectColorNums);
-            Debug.Log("Correct Color: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+            Debug.Log($"Correct Color: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             if (correctColorNums.Contains(selectedColorNum))
             {
                 PushCorrectButton(new int[] { index }, enemyCorrespondingCardsDict.Keys.ToArray());
@@ -310,12 +308,10 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             if (_enemyCardData[enemyCard.Key].Effect == ConfigConstants.CardEffect.Substitute)
             {
-                Debug.Log("Enemy Substitute Found: " +
-                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                Debug.Log($"Enemy Substitute Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
                 correctColorNums = correctColorNums
                     .Select(value => SubstituteCorrectColor(value, _enemyCards[enemyCard.Key])).Distinct().ToArray();
-                Debug.Log("Enemy Substituted: " +
-                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                Debug.Log($"After Enemy Substitute: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             }
         }
 
@@ -323,12 +319,10 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             if (_playerCardData[playerCard.Key].Effect == ConfigConstants.CardEffect.Substitute)
             {
-                Debug.Log("Player Substitute Found: " +
-                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                Debug.Log($"Player Substitute Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
                 correctColorNums = correctColorNums
                     .Select(value => SubstituteCorrectColor(value, _playerCards[playerCard.Key])).Distinct().ToArray();
-                Debug.Log("Player Substituted: " +
-                          string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                Debug.Log($"After Player Substitute: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             }
         }
 
@@ -336,10 +330,10 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             if (_enemyCardData[enemyCard.Key].Effect == ConfigConstants.CardEffect.Exchange)
             {
-                Debug.Log("Exchange Found: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                Debug.Log($"Exchange Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
                 correctColorNums = correctColorNums.Select(value => ExchangeCorrectColor(value, enemyCard.Key))
                     .Distinct().ToArray();
-                Debug.Log("Exchanged: " + string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray()));
+                Debug.Log($"After Exchange: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             }
         }
 
@@ -350,12 +344,12 @@ public class CardManager : MonoBehaviourPunCallbacks
     {
         if (value == _enemyCards[index].ColorArgs[0])
         {
-            Debug.Log("Exchanged: " + _enemyCards[index].ColorArgs[0] + " to " + _enemyCards[index].ColorArgs[1]);
+            Debug.Log($"Exchanged: {_enemyCards[index].ColorArgs[0]} to {_enemyCards[index].ColorArgs[1]}");
             return _enemyCards[index].ColorArgs[1];
         }
         else if (value == _enemyCards[index].ColorArgs[1])
         {
-            Debug.Log("Exchanged: " + _enemyCards[index].ColorArgs[1] + " to " + _enemyCards[index].ColorArgs[0]);
+            Debug.Log($"Exchanged: {_enemyCards[index].ColorArgs[1]} to {_enemyCards[index].ColorArgs[0]}");
             return _enemyCards[index].ColorArgs[0];
         }
         else
@@ -368,7 +362,7 @@ public class CardManager : MonoBehaviourPunCallbacks
     {
         if (value == card.ColorArgs[0])
         {
-            Debug.Log("Substituted: " + card.ColorArgs[0] + " to " + card.ColorArgs[1]);
+            Debug.Log($"Substituted: {card.ColorArgs[0]} to {card.ColorArgs[1]}");
             return card.ColorArgs[1];
         }
         else

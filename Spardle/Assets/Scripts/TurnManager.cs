@@ -46,7 +46,6 @@ public class TurnManager : MonoBehaviour
     {
         if (isMyTurn != IsMyTurn)
         {
-            Debug.Log(!(isMyTurn ^ _isMasterClient));
             GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsMasterClientTurnKey, !(isMyTurn ^ _isMasterClient));
         }
     }
