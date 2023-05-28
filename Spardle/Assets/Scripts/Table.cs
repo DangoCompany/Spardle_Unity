@@ -4,7 +4,8 @@ public class Table : MonoBehaviour
 {
     public void SetCardPos(Card card)
     {
-        card.transform.SetParent(transform);
-        card.transform.position = transform.position;
+        Transform cardTransform = card.transform;
+        cardTransform.SetParent(transform);
+        cardTransform.position = transform.position;
     }
 }

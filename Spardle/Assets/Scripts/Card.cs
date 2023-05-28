@@ -8,16 +8,6 @@ using UnityEngine.EventSystems;
 
 public class Card : MonoBehaviour, IPointerDownHandler
 {
-    private static readonly string[] ColorsString =
-    {
-        // 赤
-        "<color=#e60033>赤色</color>",
-        // 緑
-        "<color=#3eb370>緑色</color>",
-        // 青
-        "<color=#0095d9>青色</color>"
-    };
-
     [SerializeField] private Image _figure;
     [SerializeField] private GameObject _nameSlot;
     [SerializeField] private Text _effectName;
@@ -32,6 +22,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
     private bool _isClickedCard;
     private Vector2 _clickStartPosition;
     private Subject<Vector2> _onClickCard = new Subject<Vector2>();
+
     public IObservable<Vector2> OnClickCard => _onClickCard;
     
     // デバッグ用
@@ -51,9 +42,12 @@ public class Card : MonoBehaviour, IPointerDownHandler
     {
         this.OnMouseUpAsObservable()
             .Where(_ => _isClickedCard)
+            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                .IsInProgressKey))
             .Select(_ => new Vector2(Input.mousePosition.x, Input.mousePosition.y))
             .Subscribe(clickEndPosition =>
             {
+                GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
                 _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
                 _isClickedCard = false;
             });
@@ -77,8 +71,8 @@ public class Card : MonoBehaviour, IPointerDownHandler
         _figure.color = color;
         _effectName.text = cardData.EffectName;
         _effectDescr.text = cardData.EffectDescr;
-        _effectDescr.text = _effectDescr.text.Replace("C0", ColorsString[cnNums[0]]);
-        _effectDescr.text = _effectDescr.text.Replace("C1", ColorsString[cnNums[1]]);
+        _effectDescr.text = _effectDescr.text.Replace("C0", DictionaryConstants.ColorsString[cnNums[0]]);
+        _effectDescr.text = _effectDescr.text.Replace("C1", DictionaryConstants.ColorsString[cnNums[1]]);
     }
 
     public void PickedUp(Deck deck, HalfDeck topHalfDeck, HalfDeck bottomHalfDeck)

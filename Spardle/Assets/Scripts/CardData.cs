@@ -3,17 +3,9 @@ using UnityEngine;
 [CreateAssetMenu]
 public class CardData : ScriptableObject
 {
-    [SerializeField] private CardEffect _effect;
+    [SerializeField] private ConfigConstants.CardEffect _effect;
 
-    public CardEffect Effect => _effect;
-
-    public enum CardEffect
-    {
-        Exchange,
-        Illusion,
-        None,
-        Substitute
-    }
+    public ConfigConstants.CardEffect Effect => _effect;
 
     [SerializeField] private string _effectName;
 

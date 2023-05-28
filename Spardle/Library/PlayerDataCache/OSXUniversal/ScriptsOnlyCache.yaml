@@ -5,9 +5,12 @@ ScriptsOnlyBuild:
     - CardData
     - CardManager
     - Deck
+    - GamePropertiesCallbacks
     - HalfDeck
-    - OnlineManager
+    - MatchmakeManager
     - Table
+    - TurnManager
+    - TurnPanel
     DOTween.dll:
     - DG.Tweening.Core.DOTweenSettings
     PhotonUnityNetworking.Demos.dll:
@@ -20,6 +23,8 @@ ScriptsOnlyBuild:
     - Photon.Pun.Demo.PunBasics.PlayerUI
     - Photon.Pun.Demo.SlotRacer.PlayerControl
     - Photon.Pun.Demo.SlotRacer.Utils.SplineWalker
+    PhotonUnityNetworking.Editor.dll:
+    - Photon.Pun.PunSceneSettings
     PhotonUnityNetworking.dll:
     - Photon.Pun.PhotonAnimatorView
     - Photon.Pun.PhotonRigidbodyView
@@ -30,7 +35,6 @@ ScriptsOnlyBuild:
     - UnityEditor.U2D.Animation.BoneGizmo
     Unity.2D.IK.Editor.dll:
     - UnityEditor.U2D.IK.IKEditorManager
-    - UnityEditor.U2D.IK.IKGizmos
     Unity.2D.IK.Runtime.dll:
     - UnityEditor.U2D.IK.IKEditorManagerHelper
     Unity.2D.Tilemap.Editor.dll:
@@ -85,31 +89,37 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 1468}
     - Class: 114
-      Script: {instanceID: 2150}
+      Script: {instanceID: 1700}
     - Class: 114
-      Script: {instanceID: 2888}
+      Script: {instanceID: 2192}
     - Class: 114
-      Script: {instanceID: 3072}
+      Script: {instanceID: 2656}
     - Class: 114
-      Script: {instanceID: 3322}
+      Script: {instanceID: 2966}
     - Class: 114
-      Script: {instanceID: 3612}
+      Script: {instanceID: 3160}
     - Class: 114
-      Script: {instanceID: 3622}
+      Script: {instanceID: 3428}
     - Class: 114
-      Script: {instanceID: 3774}
+      Script: {instanceID: 3736}
     - Class: 114
-      Script: {instanceID: 4412}
+      Script: {instanceID: 3746}
     - Class: 114
-      Script: {instanceID: 4648}
+      Script: {instanceID: 3914}
     - Class: 114
-      Script: {instanceID: 5530}
+      Script: {instanceID: 4608}
     - Class: 114
-      Script: {instanceID: 5680}
+      Script: {instanceID: 4856}
     - Class: 114
-      Script: {instanceID: 5870}
+      Script: {instanceID: 5512}
     - Class: 114
-      Script: {instanceID: 6618}
+      Script: {instanceID: 5778}
+    - Class: 114
+      Script: {instanceID: 5936}
+    - Class: 114
+      Script: {instanceID: 6144}
+    - Class: 114
+      Script: {instanceID: 6928}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -166,51 +176,51 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 1468}
     - Class: 114
-      Script: {instanceID: 1604}
+      Script: {instanceID: 1612}
     - Class: 114
-      Script: {instanceID: 1780}
+      Script: {instanceID: 1796}
     - Class: 114
-      Script: {instanceID: 1820}
+      Script: {instanceID: 1836}
     - Class: 114
-      Script: {instanceID: 1824}
+      Script: {instanceID: 1842}
     - Class: 114
-      Script: {instanceID: 2512}
+      Script: {instanceID: 2564}
     - Class: 114
-      Script: {instanceID: 2592}
+      Script: {instanceID: 2654}
     - Class: 114
-      Script: {instanceID: 2888}
+      Script: {instanceID: 2966}
     - Class: 114
-      Script: {instanceID: 3072}
+      Script: {instanceID: 3160}
     - Class: 114
-      Script: {instanceID: 3322}
+      Script: {instanceID: 3428}
     - Class: 114
-      Script: {instanceID: 3612}
+      Script: {instanceID: 3736}
     - Class: 114
-      Script: {instanceID: 3622}
+      Script: {instanceID: 3746}
     - Class: 114
-      Script: {instanceID: 3624}
+      Script: {instanceID: 3748}
     - Class: 114
-      Script: {instanceID: 3752}
+      Script: {instanceID: 3890}
     - Class: 114
-      Script: {instanceID: 4302}
+      Script: {instanceID: 4488}
     - Class: 114
-      Script: {instanceID: 4452}
+      Script: {instanceID: 4648}
     - Class: 114
-      Script: {instanceID: 4924}
+      Script: {instanceID: 5148}
     - Class: 114
-      Script: {instanceID: 4930}
+      Script: {instanceID: 5154}
     - Class: 114
-      Script: {instanceID: 5196}
+      Script: {instanceID: 5436}
     - Class: 114
-      Script: {instanceID: 5264}
+      Script: {instanceID: 5504}
     - Class: 114
-      Script: {instanceID: 5382}
+      Script: {instanceID: 5626}
     - Class: 114
-      Script: {instanceID: 5890}
+      Script: {instanceID: 6166}
     - Class: 114
-      Script: {instanceID: 6094}
+      Script: {instanceID: 6376}
     - Class: 114
-      Script: {instanceID: 6578}
+      Script: {instanceID: 6888}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -322,12 +332,6 @@ ScriptsOnlyBuild:
     className: Line
   - hash:
       serializedVersion: 2
-      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
-    assemblyName: Unity.Timeline.dll
-    namespaceName: UnityEngine.Timeline
-    className: SignalAsset
-  - hash:
-      serializedVersion: 2
       Hash: d1b036fbe5adcfe372c77a9d812c7e37
     assemblyName: Unity.2D.IK.Runtime.dll
     namespaceName: UnityEditor.U2D.IK
@@ -335,15 +339,27 @@ ScriptsOnlyBuild:
   - hash:
       serializedVersion: 2
       Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
-    assemblyName: UniRx.dll
-    namespaceName: UniRx.Triggers
-    className: ObservableUpdateTrigger
+    assemblyName: Unity.Timeline.dll
+    namespaceName: UnityEngine.Timeline
+    className: SignalAsset
+  - hash:
+      serializedVersion: 2
+      Hash: b473f470fb7af553393138d531e5515f
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: TurnPanel
   - hash:
       serializedVersion: 2
       Hash: c656dcc13ae391b68d594cc8f9c590b0
     assemblyName: PhotonUnityNetworking.Demos.dll
     namespaceName: Photon.Pun.Demo.Cockpit
     className: CountOfPlayersOnMasterProperty
+  - hash:
+      serializedVersion: 2
+      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
+    assemblyName: UniRx.dll
+    namespaceName: UniRx.Triggers
+    className: ObservableUpdateTrigger
   - hash:
       serializedVersion: 2
       Hash: b1f26da3046d8b188758169a9d6b1078
@@ -358,16 +374,16 @@ ScriptsOnlyBuild:
     className: LayoutElement
   - hash:
       serializedVersion: 2
-      Hash: 59ce5902048c1041729c804e2772b2ce
-    assemblyName: Unity.2D.IK.Runtime.dll
-    namespaceName: UnityEngine.U2D.IK
-    className: CCDSolver2D
-  - hash:
-      serializedVersion: 2
       Hash: cba6cca6bb3290c4c00d709cf63843db
     assemblyName: PhotonUnityNetworking.Demos.dll
     namespaceName: Photon.Pun.Demo.Cockpit
     className: GameVersionField
+  - hash:
+      serializedVersion: 2
+      Hash: 59ce5902048c1041729c804e2772b2ce
+    assemblyName: Unity.2D.IK.Runtime.dll
+    namespaceName: UnityEngine.U2D.IK
+    className: CCDSolver2D
   - hash:
       serializedVersion: 2
       Hash: 6bc76e17f0d5e93f3eea7f5a2fe227f3
@@ -586,6 +602,12 @@ ScriptsOnlyBuild:
     className: BestRegionInPrefsProperty
   - hash:
       serializedVersion: 2
+      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
+    assemblyName: UniTask.dll
+    namespaceName: Cysharp.Threading.Tasks.Triggers
+    className: AsyncStartTrigger
+  - hash:
+      serializedVersion: 2
       Hash: ef0bfd20d21d0194f78a4a59183c0f58
     assemblyName: Assembly-CSharp.dll
     namespaceName: Photon.Chat.Demo
@@ -608,6 +630,12 @@ ScriptsOnlyBuild:
     assemblyName: PhotonUnityNetworking.Demos.dll
     namespaceName: Photon.Pun.Demo.SlotRacer.Utils
     className: SplineWalker
+  - hash:
+      serializedVersion: 2
+      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: GamePropertiesCallbacks
   - hash:
       serializedVersion: 2
       Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
@@ -1144,6 +1172,12 @@ ScriptsOnlyBuild:
     className: BoolInputField
   - hash:
       serializedVersion: 2
+      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
+    assemblyName: UniTask.dll
+    namespaceName: Cysharp.Threading.Tasks.Triggers
+    className: AsyncAwakeTrigger
+  - hash:
+      serializedVersion: 2
       Hash: c656dcc13ae391b68d594cc8f9c590b0
     assemblyName: PhotonUnityNetworking.Demos.dll
     namespaceName: Photon.Pun.Demo.Cockpit
@@ -1180,16 +1214,16 @@ ScriptsOnlyBuild:
     className: PlayModeRunnerCallback
   - hash:
       serializedVersion: 2
-      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
-    assemblyName: UniRx.dll
-    namespaceName: UniRx.Triggers
-    className: ObservableEnableTrigger
-  - hash:
-      serializedVersion: 2
       Hash: a8d3c943d9168cbdd8596f040ff02ff4
     assemblyName: PhotonUnityNetworking.Demos.dll
     namespaceName: Photon.Pun.Demo.Asteroids
     className: Asteroid
+  - hash:
+      serializedVersion: 2
+      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
+    assemblyName: UniRx.dll
+    namespaceName: UniRx.Triggers
+    className: ObservableEnableTrigger
   - hash:
       serializedVersion: 2
       Hash: bd3cf68c8964d3c66d1c43f4f98508c9
@@ -1516,6 +1550,12 @@ ScriptsOnlyBuild:
     className: ScrollRect
   - hash:
       serializedVersion: 2
+      Hash: 75f703b4478574dd8bf2932a3d2ce172
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: TurnManager
+  - hash:
+      serializedVersion: 2
       Hash: 18c222bef9ae745ce69ddde9b74337ca
     assemblyName: UnityEngine.UI.dll
     namespaceName: UnityEngine.EventSystems
@@ -1531,7 +1571,7 @@ ScriptsOnlyBuild:
       Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
-    className: OnlineManager
+    className: MatchmakeManager
   - hash:
       serializedVersion: 2
       Hash: ef5c43f921427d03730f6ea4c848f07d
@@ -1720,16 +1760,16 @@ ScriptsOnlyBuild:
     className: ObservableSelectTrigger
   - hash:
       serializedVersion: 2
-      Hash: ee1dba1a186ac062d564e9eb73a1c56f
-    assemblyName: Assembly-CSharp.dll
-    namespaceName: Photon.Chat.UtilityScripts
-    className: TextToggleIsOnTransition
-  - hash:
-      serializedVersion: 2
       Hash: e7a73f5f78ba6445195ec23b74a1ce2d
     assemblyName: Unity.TextMeshPro.dll
     namespaceName: TMPro
     className: TMP_ScrollbarEventHandler
+  - hash:
+      serializedVersion: 2
+      Hash: ee1dba1a186ac062d564e9eb73a1c56f
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: Photon.Chat.UtilityScripts
+    className: TextToggleIsOnTransition
   - hash:
       serializedVersion: 2
       Hash: e37675de1ea5e56da90f5600d33587bd
@@ -1898,6 +1938,12 @@ ScriptsOnlyBuild:
     assemblyName: PhotonUnityNetworking.Demos.dll
     namespaceName: Photon.Pun.Demo.Procedural
     className: ProceduralController
+  - hash:
+      serializedVersion: 2
+      Hash: 71bb6a6b6c8f052f948db64c7dd3ca4f
+    assemblyName: UniTask.dll
+    namespaceName: Cysharp.Threading.Tasks.Triggers
+    className: AsyncDestroyTrigger
   - hash:
       serializedVersion: 2
       Hash: 1bbce36c26e06daa73238c07c42b2bc9
