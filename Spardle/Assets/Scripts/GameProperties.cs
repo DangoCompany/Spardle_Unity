@@ -38,6 +38,7 @@ public static class GameProperties
 
     public static void SetCustomPropertyValue(ConfigConstants.CustomPropertyKey customPropertyKey, object value)
     {
+        RoomProperties.Clear();
         RoomProperties[DictionaryConstants.CustomPropertyKeysString[(int)customPropertyKey]] = value;
         PhotonNetwork.CurrentRoom.SetCustomProperties(RoomProperties);
     }

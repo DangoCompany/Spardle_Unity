@@ -382,6 +382,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         photonView.RPC(nameof(PickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
         EnemyPickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
         TurnManager.Instance.SetIsMyTurn(false);
+        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
     private void PushWrongButton()
@@ -399,6 +400,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         PickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
         photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
         TurnManager.Instance.SetIsMyTurn(true);
+        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
     [PunRPC]
@@ -450,7 +452,6 @@ public class CardManager : MonoBehaviourPunCallbacks
         }
 
         _playerDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
-        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
     [PunRPC]
