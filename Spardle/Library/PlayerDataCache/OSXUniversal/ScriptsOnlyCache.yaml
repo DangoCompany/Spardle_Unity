@@ -7,6 +7,7 @@ ScriptsOnlyBuild:
     - Deck
     - GamePropertiesCallbacks
     - HalfDeck
+    - MatchOverPanel
     - MatchmakeManager
     - Table
     - TurnManager
@@ -35,6 +36,7 @@ ScriptsOnlyBuild:
     - UnityEditor.U2D.Animation.BoneGizmo
     Unity.2D.IK.Editor.dll:
     - UnityEditor.U2D.IK.IKEditorManager
+    - UnityEditor.U2D.IK.IKGizmos
     Unity.2D.IK.Runtime.dll:
     - UnityEditor.U2D.IK.IKEditorManagerHelper
     Unity.2D.Tilemap.Editor.dll:
@@ -93,33 +95,37 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 2192}
     - Class: 114
-      Script: {instanceID: 2656}
+      Script: {instanceID: 2442}
     - Class: 114
-      Script: {instanceID: 2966}
+      Script: {instanceID: 2658}
     - Class: 114
-      Script: {instanceID: 3162}
+      Script: {instanceID: 2968}
     - Class: 114
-      Script: {instanceID: 3430}
+      Script: {instanceID: 3164}
     - Class: 114
-      Script: {instanceID: 3738}
+      Script: {instanceID: 3432}
     - Class: 114
-      Script: {instanceID: 3748}
+      Script: {instanceID: 3740}
     - Class: 114
-      Script: {instanceID: 3918}
+      Script: {instanceID: 3750}
     - Class: 114
-      Script: {instanceID: 4612}
+      Script: {instanceID: 3896}
     - Class: 114
-      Script: {instanceID: 4860}
+      Script: {instanceID: 3920}
     - Class: 114
-      Script: {instanceID: 5516}
+      Script: {instanceID: 4614}
     - Class: 114
-      Script: {instanceID: 5782}
+      Script: {instanceID: 4862}
     - Class: 114
-      Script: {instanceID: 5940}
+      Script: {instanceID: 5518}
     - Class: 114
-      Script: {instanceID: 6148}
+      Script: {instanceID: 5784}
     - Class: 114
-      Script: {instanceID: 6932}
+      Script: {instanceID: 5942}
+    - Class: 114
+      Script: {instanceID: 6150}
+    - Class: 114
+      Script: {instanceID: 6934}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -184,43 +190,43 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 1842}
     - Class: 114
-      Script: {instanceID: 2564}
+      Script: {instanceID: 2566}
     - Class: 114
-      Script: {instanceID: 2654}
+      Script: {instanceID: 2656}
     - Class: 114
-      Script: {instanceID: 2966}
+      Script: {instanceID: 2968}
     - Class: 114
-      Script: {instanceID: 3162}
+      Script: {instanceID: 3164}
     - Class: 114
-      Script: {instanceID: 3430}
+      Script: {instanceID: 3432}
     - Class: 114
-      Script: {instanceID: 3738}
-    - Class: 114
-      Script: {instanceID: 3748}
+      Script: {instanceID: 3740}
     - Class: 114
       Script: {instanceID: 3750}
     - Class: 114
-      Script: {instanceID: 3894}
+      Script: {instanceID: 3752}
     - Class: 114
-      Script: {instanceID: 4492}
+      Script: {instanceID: 3896}
     - Class: 114
-      Script: {instanceID: 4652}
+      Script: {instanceID: 4494}
     - Class: 114
-      Script: {instanceID: 5152}
+      Script: {instanceID: 4654}
     - Class: 114
-      Script: {instanceID: 5158}
+      Script: {instanceID: 5154}
     - Class: 114
-      Script: {instanceID: 5440}
+      Script: {instanceID: 5160}
     - Class: 114
-      Script: {instanceID: 5508}
+      Script: {instanceID: 5442}
     - Class: 114
-      Script: {instanceID: 5630}
+      Script: {instanceID: 5510}
     - Class: 114
-      Script: {instanceID: 6170}
+      Script: {instanceID: 5632}
     - Class: 114
-      Script: {instanceID: 6380}
+      Script: {instanceID: 6172}
     - Class: 114
-      Script: {instanceID: 6892}
+      Script: {instanceID: 6382}
+    - Class: 114
+      Script: {instanceID: 6894}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -518,7 +524,7 @@ ScriptsOnlyBuild:
     className: GameManager
   - hash:
       serializedVersion: 2
-      Hash: f9ab4672ef3b70eb6a8ec7d5322364d6
+      Hash: f2f4d33b02e4b3a031a80c136b5edde8
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: CardManager
@@ -546,6 +552,12 @@ ScriptsOnlyBuild:
     assemblyName: Unity.TextMeshPro.dll
     namespaceName: TMPro
     className: TMP_StyleSheet
+  - hash:
+      serializedVersion: 2
+      Hash: b29367065079701f535e49e0edf1041a
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: MatchOverPanel
   - hash:
       serializedVersion: 2
       Hash: c656dcc13ae391b68d594cc8f9c590b0

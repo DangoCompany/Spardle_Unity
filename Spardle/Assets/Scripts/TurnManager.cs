@@ -40,6 +40,10 @@ public class TurnManager : MonoBehaviour
             Debug.LogError("Turn Should Be Changed Here");
         }
         IsMyTurn = !(isMasterClientTurn ^ _isMasterClient);
+        if (IsMyTurn)
+        {
+            CardManager.Instance.CheckIfMyDeckEmpty();
+        }
     }
 
     public void SetIsMyTurn(bool isMyTurn)

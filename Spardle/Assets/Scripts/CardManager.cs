@@ -18,6 +18,7 @@ public class CardManager : MonoBehaviourPunCallbacks
     [SerializeField] private HalfDeck _playerBottomHalfDeck;
     [SerializeField] private HalfDeck _enemyTopHalfDeck;
     [SerializeField] private HalfDeck _enemyBottomHalfDeck;
+    [SerializeField] private MatchOverPanel _matchOverPanel;
     private int _playerDeckNum = ConfigConstants.TotalCardsNum / 2;
     public int PlayerDeckNum => _playerDeckNum;
     private int _enemyDeckNum = ConfigConstants.TotalCardsNum / 2;
@@ -243,7 +244,8 @@ public class CardManager : MonoBehaviourPunCallbacks
 
                     if (_enemyCardData[enemyCardPair.Key].Effect == ConfigConstants.CardEffect.Illusion)
                     {
-                        Debug.Log($"Illusion Enemy Card Color: {enemyCardPair.Value.ColorNum} to {enemyCardPair.Value.ColorArgs[0]}");
+                        Debug.Log(
+                            $"Illusion Enemy Card Color: {enemyCardPair.Value.ColorNum} to {enemyCardPair.Value.ColorArgs[0]}");
                         enemyCardColorNum = enemyCardPair.Value.ColorArgs[0];
                     }
                     else
@@ -264,7 +266,8 @@ public class CardManager : MonoBehaviourPunCallbacks
                 })
                 .Distinct()
                 .ToArray();
-            Debug.Log($"Temporary Correct Color: {string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray())}");
+            Debug.Log(
+                $"Temporary Correct Color: {string.Join(", ", tmpCorrectColorNums.Select(_ => _.ToString()).ToArray())}");
             int[] correctColorNums = GetCorrectColorNums(tmpCorrectColorNums);
             Debug.Log($"Correct Color: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             if (correctColorNums.Contains(selectedColorNum))
@@ -308,10 +311,12 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             if (_enemyCardData[enemyCard.Key].Effect == ConfigConstants.CardEffect.Substitute)
             {
-                Debug.Log($"Enemy Substitute Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
+                Debug.Log(
+                    $"Enemy Substitute Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
                 correctColorNums = correctColorNums
                     .Select(value => SubstituteCorrectColor(value, _enemyCards[enemyCard.Key])).Distinct().ToArray();
-                Debug.Log($"After Enemy Substitute: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
+                Debug.Log(
+                    $"After Enemy Substitute: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             }
         }
 
@@ -319,10 +324,12 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             if (_playerCardData[playerCard.Key].Effect == ConfigConstants.CardEffect.Substitute)
             {
-                Debug.Log($"Player Substitute Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
+                Debug.Log(
+                    $"Player Substitute Found: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
                 correctColorNums = correctColorNums
                     .Select(value => SubstituteCorrectColor(value, _playerCards[playerCard.Key])).Distinct().ToArray();
-                Debug.Log($"After Player Substitute: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
+                Debug.Log(
+                    $"After Player Substitute: {string.Join(", ", correctColorNums.Select(_ => _.ToString()).ToArray())}");
             }
         }
 
@@ -397,6 +404,25 @@ public class CardManager : MonoBehaviourPunCallbacks
         GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
+    public void CheckIfMyDeckEmpty()
+    {
+        if (_playerDeckNum == 0) TurnManager.Instance.SetIsMyTurn(false);
+    }
+
+    private void CheckExistsWinner()
+    {
+        if (_playerDeckNum == 0 && _playerPlayedData.Count == 0)
+        {
+            _matchOverPanel.gameObject.SetActive(true);
+            _matchOverPanel.SetResultText(true);
+        }
+        else if (_enemyDeckNum == 0 && _enemyPlayedData.Count == 0)
+        {
+            _matchOverPanel.gameObject.SetActive(true);
+            _matchOverPanel.SetResultText(false);
+        }
+    }
+
     [PunRPC]
     private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic)
     {
@@ -446,6 +472,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         }
 
         _playerDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
+        CheckExistsWinner();
     }
 
     [PunRPC]
@@ -472,5 +499,6 @@ public class CardManager : MonoBehaviourPunCallbacks
         }
 
         _enemyDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
+        CheckExistsWinner();
     }
 }

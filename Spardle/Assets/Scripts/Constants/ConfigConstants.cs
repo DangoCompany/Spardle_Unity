@@ -1,6 +1,5 @@
 public static class ConfigConstants
 {
-    public static readonly int MaxPlayerNum = 2;
     // 追加したら随時更新すべし
     public static readonly int FigureShapeNum = 4;
     // 追加したら随時更新すべし
