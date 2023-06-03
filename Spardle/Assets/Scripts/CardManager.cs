@@ -77,6 +77,12 @@ public class CardManager : MonoBehaviourPunCallbacks
                 if (!(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
                         .IsInProgressKey))
                 {
+                    if (CanPutActionButton())
+                    {
+                        PushWrongButton();
+                        return;
+                    }
+
                     GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
                     int cardDataNum;
                     int figureNum = UnityEngine.Random.Range(0, _playerDeckNum);
@@ -87,8 +93,11 @@ public class CardManager : MonoBehaviourPunCallbacks
                     {
                         if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Exchange)
                         {
-                            photonView.RPC(nameof(ApplyExchangeToMyCards), RpcTarget.Others, _playerCards[_tableNumberToPlace].ColorArgs[0], _playerCards[_tableNumberToPlace].ColorArgs[1]);
+                            photonView.RPC(nameof(ApplyExchangeToMyCards), RpcTarget.Others,
+                                _playerCards[_tableNumberToPlace].ColorArgs[0],
+                                _playerCards[_tableNumberToPlace].ColorArgs[1]);
                         }
+
                         Destroy(_playerCards[_tableNumberToPlace].gameObject);
                     }
 
@@ -136,7 +145,6 @@ public class CardManager : MonoBehaviourPunCallbacks
                         .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
                         .Select(item => item.EnemyCard)
                         .ToArray();
-                    Debug.Log($"enemyExchangeCards: {string.Join(", ", enemyExchangeCards.Select(_ => _.ToString()).ToArray())}");
                     foreach (var enemyExchangeCard in enemyExchangeCards)
                     {
                         card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
@@ -213,6 +221,22 @@ public class CardManager : MonoBehaviourPunCallbacks
         availableNums = availableNums.Except(_exceptedCardDataNums).ToList();
         _exceptedCardDataNums.Clear();
         return availableNums[UnityEngine.Random.Range(0, availableNums.Count())];
+    }
+
+    private bool CanPutActionButton()
+    {
+        var playerCards = _playerCards
+            .Where(playerCard => playerCard != null);
+        foreach (var playerCard in playerCards)
+        {
+            if (_enemyCards.Where(enemyCard => enemyCard != null)
+                .Any(enemyCard => enemyCard.ShapeNum == playerCard.ShapeNum))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums, bool isMyCard)
