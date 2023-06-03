@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Photon.Pun;
 using UniRx;
+using UniRx.Triggers;
 
 public class CardManager : MonoBehaviourPunCallbacks
 {
@@ -67,93 +68,93 @@ public class CardManager : MonoBehaviourPunCallbacks
 
             photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic);
         }
-    }
 
-    private async void Update()
-    {
-        if (Input.anyKeyDown)
-        {
-            if (Input.GetKeyDown(KeyCode.Return))
+        this.UpdateAsObservable()
+            .Where(_ => Input.GetKeyDown(KeyCode.Return))
+            .Where(_ => TurnManager.Instance.IsMyTurn)
+            .Subscribe(async _ =>
             {
-                if (TurnManager.Instance.IsMyTurn)
+                if (!(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
+                        .IsInProgressKey))
                 {
-                    if (!(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
-                            .IsInProgressKey))
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
+                    int cardDataNum;
+                    int figureNum = UnityEngine.Random.Range(0, _playerDeckNum);
+                    int[] figureData = _playerDeckData[figureNum];
+                    int[] cnNums = { 0, 0 };
+                    DecideTableNumber();
+                    if (_playerCards[_tableNumberToPlace] != null)
                     {
-                        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
-                        int cardDataNum;
-                        int figureNum = UnityEngine.Random.Range(0, _playerDeckNum);
-                        int[] figureData = _playerDeckData[figureNum];
-                        int[] cnNums = { 0, 0 };
-                        DecideTableNumber();
-                        if (_playerCards[_tableNumberToPlace] != null)
+                        if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Exchange)
                         {
-                            Destroy(_playerCards[_tableNumberToPlace].gameObject);
+                            photonView.RPC(nameof(ApplyExchangeToMyCards), RpcTarget.Others, _playerCards[_tableNumberToPlace].ColorArgs[0], _playerCards[_tableNumberToPlace].ColorArgs[1]);
                         }
-
-                        if (_playerCardData
-                            .Where(data => data != null)
-                            .Any(data => data.Effect == ConfigConstants.CardEffect.Exchange))
-                        {
-                            _exceptedCardDataNums.Add((int)ConfigConstants.CardEffect.Exchange);
-                        }
-
-                        if (_playerCardData
-                                .Where(data => data != null)
-                                .Any(data => data.Effect == ConfigConstants.CardEffect.Substitute) ||
-                            _enemyCardData
-                                .Where(data => data != null)
-                                .Any(data => data.Effect == ConfigConstants.CardEffect.Substitute))
-                        {
-                            _exceptedCardDataNums.Add((int)ConfigConstants.CardEffect.Substitute);
-                        }
-
-                        cardDataNum = DecideCardDataNumber();
-                        if (_cardData != null)
-                        {
-                            if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
-                                _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
-                            {
-                                List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
-                                cnNums[0] = UnityEngine.Random.Range(0, 3);
-                                colorIndexes.RemoveAt(cnNums[0]);
-                                cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
-                            }
-                            else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
-                            {
-                                cnNums[0] = UnityEngine.Random.Range(0, 3);
-                            }
-                        }
-
-                        (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
-                            GenerateCard(cardDataNum, figureData, cnNums, true);
-                        int tableNumber = _tableNumberToPlace;
-                        Card card = _playerCards[tableNumber];
-                        Card[] enemyExchangeCards = _enemyCards
-                            .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
-                            .Where(item => item.EnemyCard != null)
-                            .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
-                            .Select(item => item.EnemyCard)
-                            .ToArray();
-                        foreach (var enemyExchangeCard in enemyExchangeCards)
-                        {
-                            card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
-                        }
-                        card.OnClickCard
-                            .Subscribe(delta => OnReceiveCardAction(delta, card, tableNumber))
-                            .AddTo(card);
-                        _playerTables[tableNumber].SetCardPos(card);
-                        _playerPlayedData.Add(new int[] { tableNumber, figureData[0], figureData[1] });
-                        _playerDeckNum--;
-                        _playerDeckData.Remove(figureData);
-                        photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
-                            tableNumber);
-                        TurnManager.Instance.SetIsMyTurn(false);
-                        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
+                        Destroy(_playerCards[_tableNumberToPlace].gameObject);
                     }
+
+                    if (_playerCardData
+                        .Where(data => data != null)
+                        .Any(data => data.Effect == ConfigConstants.CardEffect.Exchange))
+                    {
+                        _exceptedCardDataNums.Add((int)ConfigConstants.CardEffect.Exchange);
+                    }
+
+                    if (_playerCardData
+                            .Where(data => data != null)
+                            .Any(data => data.Effect == ConfigConstants.CardEffect.Substitute) ||
+                        _enemyCardData
+                            .Where(data => data != null)
+                            .Any(data => data.Effect == ConfigConstants.CardEffect.Substitute))
+                    {
+                        _exceptedCardDataNums.Add((int)ConfigConstants.CardEffect.Substitute);
+                    }
+
+                    cardDataNum = DecideCardDataNumber();
+                    if (_cardData != null)
+                    {
+                        if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
+                            _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
+                        {
+                            List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
+                            cnNums[0] = UnityEngine.Random.Range(0, 3);
+                            colorIndexes.RemoveAt(cnNums[0]);
+                            cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
+                        }
+                        else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
+                        {
+                            cnNums[0] = UnityEngine.Random.Range(0, 3);
+                        }
+                    }
+
+                    (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
+                        GenerateCard(cardDataNum, figureData, cnNums, true);
+                    int tableNumber = _tableNumberToPlace;
+                    Card card = _playerCards[tableNumber];
+                    Card[] enemyExchangeCards = _enemyCards
+                        .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+                        .Where(item => item.EnemyCard != null)
+                        .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
+                        .Select(item => item.EnemyCard)
+                        .ToArray();
+                    Debug.Log($"enemyExchangeCards: {string.Join(", ", enemyExchangeCards.Select(_ => _.ToString()).ToArray())}");
+                    foreach (var enemyExchangeCard in enemyExchangeCards)
+                    {
+                        card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
+                    }
+
+                    card.OnClickCard
+                        .Subscribe(delta => OnReceiveCardAction(delta, card, tableNumber))
+                        .AddTo(card);
+                    _playerTables[tableNumber].SetCardPos(card);
+                    _playerPlayedData.Add(new int[] { tableNumber, figureData[0], figureData[1] });
+                    _playerDeckNum--;
+                    _playerDeckData.Remove(figureData);
+                    photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
+                        tableNumber);
+                    TurnManager.Instance.SetIsMyTurn(false);
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
                 }
-            }
-        }
+            });
     }
 
     private void DealCardsToPlayers()
@@ -220,7 +221,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         Sprite shape = _cardShapes[figureData[0]];
         Color32 color = DictionaryConstants.FigureColors[figureData[1]];
         Card card = Instantiate(_cardPrefab);
-        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard);
+        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect);
         card.SetCard(cardData, shape, color, cnNums);
         return (card, cardData);
     }
@@ -433,6 +434,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         }
     }
 
+    [PunRPC]
     public void ApplyExchangeToMyCards(int color0, int color1)
     {
         Card[] playerCards = _playerCards
@@ -468,6 +470,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             ApplyExchangeToMyCards(cnNums[0], cnNums[1]);
         }
+
         _enemyPlayedData.Add(new int[] { tableNum, figureData[0], figureData[1] });
         _enemyDeckNum--;
         _enemyDeckData.RemoveAll(data => data.SequenceEqual(figureData));
@@ -480,8 +483,10 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             _playerCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
             _playerCards[i] = null;
-            _playerDeckData.AddRange(_playerPlayedData.Where(data => data[0] == i)
-                .Select(data => new int[] { data[1], data[2] }).ToList());
+            List<int[]> playerPlayedData = _playerPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList();
+            _playerDeckData.AddRange(playerPlayedData);
+            _playerDeckNum += playerPlayedData.Count;
             _playerPlayedData.RemoveAll(data => data[0] == i);
             _playerCardData[i] = null;
         }
@@ -490,13 +495,14 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             _enemyCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
             _enemyCards[i] = null;
-            _playerDeckData.AddRange(_enemyPlayedData.Where(data => data[0] == i)
-                .Select(data => new int[] { data[1], data[2] }).ToList());
+            List<int[]> enemyPlayedData = _enemyPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList();
+            _playerDeckData.AddRange(enemyPlayedData);
+            _playerDeckNum += enemyPlayedData.Count;
             _enemyPlayedData.RemoveAll(data => data[0] == i);
             _enemyCardData[i] = null;
         }
 
-        _playerDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
         CheckExistsWinner();
     }
 
@@ -507,8 +513,10 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             _playerCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
             _playerCards[i] = null;
-            _enemyDeckData.AddRange(_playerPlayedData.Where(data => data[0] == i)
-                .Select(data => new int[] { data[1], data[2] }).ToList());
+            List<int[]> playerPlayedData = _playerPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList();
+            _enemyDeckData.AddRange(playerPlayedData);
+            _enemyDeckNum += playerPlayedData.Count;
             _playerPlayedData.RemoveAll(data => data[0] == i);
             _playerCardData[i] = null;
         }
@@ -517,13 +525,14 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             _enemyCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
             _enemyCards[i] = null;
-            _enemyDeckData.AddRange(_enemyPlayedData.Where(data => data[0] == i)
-                .Select(data => new int[] { data[1], data[2] }).ToList());
+            List<int[]> enemyPlayedData = _enemyPlayedData.Where(data => data[0] == i)
+                .Select(data => new int[] { data[1], data[2] }).ToList();
+            _enemyDeckData.AddRange(enemyPlayedData);
+            _enemyDeckNum += enemyPlayedData.Count;
             _enemyPlayedData.RemoveAll(data => data[0] == i);
             _enemyCardData[i] = null;
         }
 
-        _enemyDeckNum += playerCardsIndexes.Length + enemyCardsIndexes.Length;
         CheckExistsWinner();
     }
 }

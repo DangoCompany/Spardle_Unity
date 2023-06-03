@@ -15,6 +15,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
     [SerializeField] private GameObject _scbLogo;
     [SerializeField] private GameObject _actionButton;
     private int[] _buttonColors = new[] { 0, 1, 2 };
+    private ConfigConstants.CardEffect _cardEffect;
     private int _shapeNum;
     private bool _isMyCard;
     public int ShapeNum => _shapeNum;
@@ -34,12 +35,13 @@ public class Card : MonoBehaviour, IPointerDownHandler
         Debug.Log($"ShapeNum: {_shapeNum}\nColorNum: {_colorNum}\nColorArgs: {_colorArgs[0]}, {_colorArgs[1]}");
     }
 
-    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard)
+    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard, ConfigConstants.CardEffect cardEffect)
     {
         _shapeNum = shapeNum;
         _colorNum = colorNum;
         _colorArgs = colorArgs;
         _isMyCard = isMyCard;
+        _cardEffect = cardEffect;
     }
 
     private void Start()
@@ -101,7 +103,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
             Destroy(gameObject);
         }));
         sequence.Play();
-        if (!_isMyCard)
+        if (!_isMyCard && _cardEffect == ConfigConstants.CardEffect.Exchange)
         {
             CardManager.Instance.ApplyExchangeToMyCards(_colorArgs[0], _colorArgs[1]);
         }
