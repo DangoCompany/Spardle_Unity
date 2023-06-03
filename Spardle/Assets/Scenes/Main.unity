@@ -316,6 +316,7 @@ MonoBehaviour:
   _enemyTopHalfDeck: {fileID: 236098153}
   _enemyBottomHalfDeck: {fileID: 1000606809}
   _matchOverPanel: {fileID: 233136825}
+  _mainCanvas: {fileID: 1339015974}
 --- !u!114 &141018316
 MonoBehaviour:
   m_ObjectHideFlags: 0

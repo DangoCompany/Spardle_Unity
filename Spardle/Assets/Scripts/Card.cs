@@ -13,7 +13,10 @@ public class Card : MonoBehaviour, IPointerDownHandler
     [SerializeField] private Text _effectName;
     [SerializeField] private Text _effectDescr;
     [SerializeField] private GameObject _scbLogo;
+    [SerializeField] private GameObject _actionButton;
+    private int[] _buttonColors = new[] { 0, 1, 2 };
     private int _shapeNum;
+    private bool _isMyCard;
     public int ShapeNum => _shapeNum;
     private int _colorNum;
     public int ColorNum => _colorNum;
@@ -24,23 +27,25 @@ public class Card : MonoBehaviour, IPointerDownHandler
     private Subject<Vector2> _onClickCard = new Subject<Vector2>();
 
     public IObservable<Vector2> OnClickCard => _onClickCard;
-    
+
     // デバッグ用
     public void OnPointerEnter()
     {
         Debug.Log($"ShapeNum: {_shapeNum}\nColorNum: {_colorNum}\nColorArgs: {_colorArgs[0]}, {_colorArgs[1]}");
     }
 
-    public void Initialize(int shapeNum, int colorNum, int[] colorArgs)
+    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard)
     {
         _shapeNum = shapeNum;
         _colorNum = colorNum;
         _colorArgs = colorArgs;
+        _isMyCard = isMyCard;
     }
 
     private void Start()
     {
         this.OnMouseUpAsObservable()
+            .Where(_ => _isMyCard)
             .Where(_ => _isClickedCard)
             .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
                 .IsInProgressKey))
@@ -50,6 +55,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
                 GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
                 _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
                 _isClickedCard = false;
+                _actionButton.SetActive(false);
             });
     }
 
@@ -61,8 +67,14 @@ public class Card : MonoBehaviour, IPointerDownHandler
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        _isClickedCard = true;
-        _clickStartPosition = eventData.position;
+        if (_isMyCard)
+        {
+            _isClickedCard = true;
+            _clickStartPosition = eventData.position;
+            _actionButton.SetActive(true);
+            _actionButton.transform.position = new Vector3(Camera.main.ScreenToWorldPoint(_clickStartPosition).x, Camera.main.ScreenToWorldPoint(_clickStartPosition).y, 0);
+            _actionButton.GetComponent<ActionButton>().SetButtonPosition(_buttonColors);
+        }
     }
 
     public void SetCard(CardData cardData, Sprite shape, Color32 color, int[] cnNums)
@@ -89,14 +101,23 @@ public class Card : MonoBehaviour, IPointerDownHandler
             Destroy(gameObject);
         }));
         sequence.Play();
+        if (!_isMyCard)
+        {
+            CardManager.Instance.ApplyExchangeToMyCards(_colorArgs[0], _colorArgs[1]);
+        }
     }
 
-    public void TurnOverAndRotateQuarter()
+    private void TurnOverAndRotateQuarter()
     {
         _nameSlot.SetActive(false);
         _effectDescr.gameObject.SetActive(false);
         _figure.gameObject.SetActive(false);
         _scbLogo.SetActive(true);
         transform.DORotate(new Vector3(0, 0, 0), 0.3f);
+    }
+    
+    public void ExchangeButton(int color0, int color1)
+    {
+        (_buttonColors[color0], _buttonColors[color1]) = (_buttonColors[color1], _buttonColors[color0]);
     }
 }

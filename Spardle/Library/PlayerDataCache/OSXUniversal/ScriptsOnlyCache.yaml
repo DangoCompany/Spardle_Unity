@@ -1,6 +1,7 @@
 ScriptsOnlyBuild:
   usedScripts:
     Assembly-CSharp.dll:
+    - ActionButton
     - Card
     - CardData
     - CardManager
@@ -91,41 +92,43 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 1468}
     - Class: 114
-      Script: {instanceID: 1700}
+      Script: {instanceID: 1702}
     - Class: 114
-      Script: {instanceID: 2192}
+      Script: {instanceID: 1828}
     - Class: 114
-      Script: {instanceID: 2442}
+      Script: {instanceID: 2196}
     - Class: 114
-      Script: {instanceID: 2658}
+      Script: {instanceID: 2446}
     - Class: 114
-      Script: {instanceID: 2968}
+      Script: {instanceID: 2662}
     - Class: 114
-      Script: {instanceID: 3164}
+      Script: {instanceID: 2972}
     - Class: 114
-      Script: {instanceID: 3432}
+      Script: {instanceID: 3168}
     - Class: 114
-      Script: {instanceID: 3740}
+      Script: {instanceID: 3436}
     - Class: 114
-      Script: {instanceID: 3750}
+      Script: {instanceID: 3744}
     - Class: 114
-      Script: {instanceID: 3896}
+      Script: {instanceID: 3754}
     - Class: 114
-      Script: {instanceID: 3920}
+      Script: {instanceID: 3900}
     - Class: 114
-      Script: {instanceID: 4614}
+      Script: {instanceID: 3924}
     - Class: 114
-      Script: {instanceID: 4862}
+      Script: {instanceID: 4618}
     - Class: 114
-      Script: {instanceID: 5518}
+      Script: {instanceID: 4866}
     - Class: 114
-      Script: {instanceID: 5784}
+      Script: {instanceID: 5522}
     - Class: 114
-      Script: {instanceID: 5942}
+      Script: {instanceID: 5788}
     - Class: 114
-      Script: {instanceID: 6150}
+      Script: {instanceID: 5946}
     - Class: 114
-      Script: {instanceID: 6934}
+      Script: {instanceID: 6154}
+    - Class: 114
+      Script: {instanceID: 6938}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -182,51 +185,51 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 1468}
     - Class: 114
-      Script: {instanceID: 1612}
+      Script: {instanceID: 1614}
     - Class: 114
-      Script: {instanceID: 1796}
+      Script: {instanceID: 1798}
     - Class: 114
-      Script: {instanceID: 1836}
+      Script: {instanceID: 1840}
     - Class: 114
-      Script: {instanceID: 1842}
+      Script: {instanceID: 1846}
     - Class: 114
-      Script: {instanceID: 2566}
+      Script: {instanceID: 2570}
     - Class: 114
-      Script: {instanceID: 2656}
+      Script: {instanceID: 2660}
     - Class: 114
-      Script: {instanceID: 2968}
+      Script: {instanceID: 2972}
     - Class: 114
-      Script: {instanceID: 3164}
+      Script: {instanceID: 3168}
     - Class: 114
-      Script: {instanceID: 3432}
+      Script: {instanceID: 3436}
     - Class: 114
-      Script: {instanceID: 3740}
+      Script: {instanceID: 3744}
     - Class: 114
-      Script: {instanceID: 3750}
+      Script: {instanceID: 3754}
     - Class: 114
-      Script: {instanceID: 3752}
+      Script: {instanceID: 3756}
     - Class: 114
-      Script: {instanceID: 3896}
+      Script: {instanceID: 3900}
     - Class: 114
-      Script: {instanceID: 4494}
+      Script: {instanceID: 4498}
     - Class: 114
-      Script: {instanceID: 4654}
+      Script: {instanceID: 4658}
     - Class: 114
-      Script: {instanceID: 5154}
+      Script: {instanceID: 5158}
     - Class: 114
-      Script: {instanceID: 5160}
+      Script: {instanceID: 5164}
     - Class: 114
-      Script: {instanceID: 5442}
+      Script: {instanceID: 5446}
     - Class: 114
-      Script: {instanceID: 5510}
+      Script: {instanceID: 5514}
     - Class: 114
-      Script: {instanceID: 5632}
+      Script: {instanceID: 5636}
     - Class: 114
-      Script: {instanceID: 6172}
+      Script: {instanceID: 6176}
     - Class: 114
-      Script: {instanceID: 6382}
+      Script: {instanceID: 6386}
     - Class: 114
-      Script: {instanceID: 6894}
+      Script: {instanceID: 6898}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -426,6 +429,12 @@ ScriptsOnlyBuild:
     assemblyName: UnityEngine.UI.dll
     namespaceName: UnityEngine.UI
     className: HorizontalLayoutGroup
+  - hash:
+      serializedVersion: 2
+      Hash: 9106a96de6b30745bcb05ea76d3dc8ee
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: ActionButton
   - hash:
       serializedVersion: 2
       Hash: 55fd795e51da61232a17e9ce0af59f52
@@ -1688,7 +1697,7 @@ ScriptsOnlyBuild:
     className: ObservableFixedUpdateTrigger
   - hash:
       serializedVersion: 2
-      Hash: f523c6c6be92bce480235dcdf4253f83
+      Hash: 4da444c19b3fc426b5c2c425df39e9be
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: Card
