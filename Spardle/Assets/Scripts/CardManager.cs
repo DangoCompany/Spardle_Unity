@@ -1,6 +1,8 @@
+using System;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using Photon.Pun;
 using UniRx;
 using UniRx.Triggers;
@@ -20,9 +22,9 @@ public class CardManager : MonoBehaviourPunCallbacks
     [SerializeField] private HalfDeck _enemyTopHalfDeck;
     [SerializeField] private HalfDeck _enemyBottomHalfDeck;
     [SerializeField] private MatchOverPanel _matchOverPanel;
-    private int _playerDeckNum = ConfigConstants.TotalCardsNum / 2;
+    private int _playerDeckNum = 0;
     public int PlayerDeckNum => _playerDeckNum;
-    private int _enemyDeckNum = ConfigConstants.TotalCardsNum / 2;
+    private int _enemyDeckNum = 0;
 
     public int EnemyDeckNum => _enemyDeckNum;
 
@@ -57,6 +59,8 @@ public class CardManager : MonoBehaviourPunCallbacks
     {
         if (PhotonNetwork.IsMasterClient)
         {
+            _playerDeckNum += ConfigConstants.TotalCardsNum / 2;
+            _enemyDeckNum += ConfigConstants.TotalCardsNum / 2;
             DealCardsToPlayers();
             Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(_playerDeckNum);
             Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(_enemyDeckNum);
@@ -245,7 +249,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         Sprite shape = _cardShapes[figureData[0]];
         Color32 color = DictionaryConstants.FigureColors[figureData[1]];
         Card card = Instantiate(_cardPrefab);
-        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect);
+        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect, _playerDeck, _enemyDeck);
         card.SetCard(cardData, shape, color, cnNums);
         return (card, cardData);
     }
@@ -439,9 +443,95 @@ public class CardManager : MonoBehaviourPunCallbacks
         GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
-    public void CheckIfMyDeckEmpty()
+    public void CheckIfDeckEmpty()
     {
-        if (_playerDeckNum == 0) TurnManager.Instance.SetIsMyTurn(false);
+        if (_playerDeckNum == 0)
+        {
+            if (_enemyDeckNum == 0)
+            {
+                OnDeadlock();
+            }
+            TurnManager.Instance.SetIsMyTurn(false);
+        }
+    }
+
+    private void OnDeadlock()
+    {
+        List<int[]> playedData = _playerPlayedData.Select(arr => new int[] { arr[1], arr[2] })
+            .Concat(_enemyPlayedData.Select(arr => new int[] { arr[1], arr[2] }))
+            .ToList();
+        int leftDataNum = playedData.Count;
+        List<int> playerDataIndexes = new List<int>(leftDataNum);
+        for (int i = 0; i < leftDataNum; i++)
+        {
+            playerDataIndexes.Add(i);
+        }
+
+        while (leftDataNum-- > _playerPlayedData.Count)
+        {
+            int index = UnityEngine.Random.Range(0, leftDataNum);
+            playerDataIndexes.RemoveAt(index);
+        }
+
+        if (_playerDeckData.Count != 0 || _enemyDeckData.Count != 0)
+        {
+            Debug.LogError("Deck Should Be Empty");
+        }
+        for (int i = 0; i < playedData.Count; i++)
+        {
+            if (playerDataIndexes.Contains(i))
+            {
+                _playerDeckData.Add(playedData[i]);
+            }
+            else
+            {
+                _enemyDeckData.Add(playedData[i]);
+            }
+        }
+        _playerDeckNum += _playerPlayedData.Count;
+        _enemyDeckNum += _enemyPlayedData.Count;
+        _playerPlayedData.Clear();
+        _enemyPlayedData.Clear();
+        Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(_playerDeckNum);
+        Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(_enemyDeckNum);
+        for (int i = 0; i < _playerDeckNum; i++)
+        {
+            playerDeckDataDic.Add(i, _playerDeckData[i]);
+        }
+
+        for (int i = 0; i < _enemyDeckNum; i++)
+        {
+            enemyDeckDataDic.Add(i, _enemyDeckData[i]);
+        }
+
+        DealAllCardsOnTables();
+        photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic);
+    }
+
+    private async void DealAllCardsOnTables()
+    {
+        Card[] playerCards = _playerCards
+            .Where(playerCard => playerCard != null)
+            .ToArray();
+        Card[] enemyCards = _enemyCards
+            .Where(enemyCard => enemyCard != null)
+            .ToArray();
+        foreach (var playerCard in playerCards)
+        {
+            playerCard.GatherAndDeal();
+        }
+
+        foreach (var enemyCard in enemyCards)
+        {
+            enemyCard.GatherAndDeal();
+        }
+        // 美しくない
+        await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+        
+        Array.Clear(_playerCards, 0, _playerCards.Length);
+        Array.Clear(_enemyCards, 0, _enemyCards.Length);
+        Array.Clear(_playerCardData, 0, _playerCardData.Length);
+        Array.Clear(_enemyCardData, 0, _enemyCardData.Length);
     }
 
     private void CheckExistsWinner()
@@ -473,11 +563,21 @@ public class CardManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic)
     {
+        _playerDeckNum += playerDeckDataDic.Count;
+        _enemyDeckNum += enemyDeckDataDic.Count;
+        _playerPlayedData.Clear();
+        _enemyPlayedData.Clear();
         for (int i = 0; i < playerDeckDataDic.Count; i++)
         {
             _playerDeckData.Add(playerDeckDataDic[i]);
+        }
+
+        for (int i = 0; i < enemyDeckDataDic.Count; i++)
+        {
             _enemyDeckData.Add(enemyDeckDataDic[i]);
         }
+
+        DealAllCardsOnTables();
     }
 
     [PunRPC]

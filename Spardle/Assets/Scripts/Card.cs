@@ -14,6 +14,8 @@ public class Card : MonoBehaviour, IPointerDownHandler
     [SerializeField] private Text _effectDescr;
     [SerializeField] private GameObject _scbLogo;
     [SerializeField] private GameObject _actionButton;
+    private Deck _playerDeck;
+    private Deck _enemyDeck;
     private int[] _buttonColors = new[] { 0, 1, 2 };
     private ConfigConstants.CardEffect _cardEffect;
     private int _shapeNum;
@@ -35,13 +37,15 @@ public class Card : MonoBehaviour, IPointerDownHandler
         Debug.Log($"ShapeNum: {_shapeNum}\nColorNum: {_colorNum}\nColorArgs: {_colorArgs[0]}, {_colorArgs[1]}");
     }
 
-    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard, ConfigConstants.CardEffect cardEffect)
+    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard, ConfigConstants.CardEffect cardEffect, Deck playerDeck, Deck enemyDeck)
     {
         _shapeNum = shapeNum;
         _colorNum = colorNum;
         _colorArgs = colorArgs;
         _isMyCard = isMyCard;
         _cardEffect = cardEffect;
+        _playerDeck = playerDeck;
+        _enemyDeck = enemyDeck;
     }
 
     private void Start()
@@ -102,11 +106,11 @@ public class Card : MonoBehaviour, IPointerDownHandler
             bottomHalfDeck.Shuffle();
             Destroy(gameObject);
         }));
-        sequence.Play();
         if (!_isMyCard && _cardEffect == ConfigConstants.CardEffect.Exchange)
         {
             CardManager.Instance.ApplyExchangeToMyCards(_colorArgs[0], _colorArgs[1]);
         }
+        sequence.Play();
     }
 
     private void TurnOverAndRotateQuarter()
@@ -116,6 +120,19 @@ public class Card : MonoBehaviour, IPointerDownHandler
         _figure.gameObject.SetActive(false);
         _scbLogo.SetActive(true);
         transform.DORotate(new Vector3(0, 0, 0), 0.3f);
+    }
+
+    public void GatherAndDeal()
+    {
+        Deck deck = _isMyCard ? _playerDeck : _enemyDeck;
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(transform.DORotate(new Vector3(0, 90, 0), 0.3f).OnComplete(() => TurnOverAndRotateQuarter()));
+        sequence.Join(transform.DOMove(Vector3.zero, 1f).SetEase(Ease.Linear))
+            .Append(transform.DOMove(deck.transform.position, 1f).OnComplete(() =>
+            {
+                Destroy(gameObject);
+            }));
+        sequence.Play();
     }
     
     public void ExchangeButton(int color0, int color1)

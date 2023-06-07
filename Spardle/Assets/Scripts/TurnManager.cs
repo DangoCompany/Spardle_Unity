@@ -42,7 +42,7 @@ public class TurnManager : MonoBehaviour
         IsMyTurn = !(isMasterClientTurn ^ _isMasterClient);
         if (IsMyTurn)
         {
-            CardManager.Instance.CheckIfMyDeckEmpty();
+            CardManager.Instance.CheckIfDeckEmpty();
         }
     }
 
