@@ -5,7 +5,10 @@ public static class DictionaryConstants
     public static readonly string[] CustomPropertyKeysString =
     {
         "IsMasterClientTurn",
-        "IsInProgress"
+        "IsMasterCardPlaying",
+        "IsNonMasterCardPlaying",
+        "IsSenderActionInProgress",
+        "IsReceiverActionInProgress"
     };
 
     public static readonly Color32[] FigureColors =

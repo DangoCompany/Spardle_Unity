@@ -9,8 +9,8 @@ public class GamePropertiesCallbacks : MonoBehaviourPunCallbacks
             if (prop.Key.Equals(DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsMasterClientTurnKey]))
             {
                 TurnManager.Instance.UpdateMyTurn((bool)prop.Value);
-                Debug.Log($"(Key: Value) = ({prop.Key}: {prop.Value})");
             }
+            Debug.Log($"(Key: Value) = ({prop.Key}: {prop.Value})");
         }
     }
 }

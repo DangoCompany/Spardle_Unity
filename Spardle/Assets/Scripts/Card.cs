@@ -54,11 +54,18 @@ public class Card : MonoBehaviour, IPointerDownHandler
             .Where(_ => _isMyCard)
             .Where(_ => _isClickedCard)
             .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                .IsInProgressKey))
+                .IsMasterCardPlaying))
+            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                .IsNonMasterCardPlaying))
+            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                .IsSenderActionInProgress))
+            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                .IsReceiverActionInProgress))
             .Select(_ => new Vector2(Input.mousePosition.x, Input.mousePosition.y))
             .Subscribe(clickEndPosition =>
             {
-                GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
+                GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
+                GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
                 _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
                 _isClickedCard = false;
                 _actionButton.SetActive(false);
@@ -127,7 +134,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
         Deck deck = _isMyCard ? _playerDeck : _enemyDeck;
         Sequence sequence = DOTween.Sequence();
         sequence.Append(transform.DORotate(new Vector3(0, 90, 0), 0.3f).OnComplete(() => TurnOverAndRotateQuarter()));
-        sequence.Join(transform.DOMove(Vector3.zero, 1f).SetEase(Ease.Linear))
+        sequence.Join(transform.DOMove(new Vector3(UnityEngine.Random.Range(-3f, 3f), UnityEngine.Random.Range(-3f, 3f), 0), 1f).SetEase(Ease.Linear))
             .Append(transform.DOMove(deck.transform.position, 1f).OnComplete(() =>
             {
                 Destroy(gameObject);

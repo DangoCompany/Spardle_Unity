@@ -70,7 +70,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                 enemyDeckDataDic.Add(i, _enemyDeckData[i]);
             }
 
-            photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic);
+            photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic, false);
         }
 
         this.UpdateAsObservable()
@@ -79,15 +79,24 @@ public class CardManager : MonoBehaviourPunCallbacks
             .Subscribe(async _ =>
             {
                 if (!(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
-                        .IsInProgressKey))
+                        .IsMasterCardPlaying) &&
+                    !(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
+                        .IsNonMasterCardPlaying) &&
+                    !(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
+                        .IsSenderActionInProgress) &&
+                    !(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
+                        .IsReceiverActionInProgress))
                 {
                     if (CanPutActionButton())
                     {
+                        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
+                        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
                         PushWrongButton();
                         return;
                     }
 
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, true);
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsMasterCardPlaying, true);
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying, true);
                     int cardDataNum;
                     int figureNum = UnityEngine.Random.Range(0, _playerDeckNum);
                     int[] figureData = _playerDeckData[figureNum];
@@ -164,7 +173,6 @@ public class CardManager : MonoBehaviourPunCallbacks
                     photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
                         tableNumber);
                     TurnManager.Instance.SetIsMyTurn(false);
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
                 }
             });
     }
@@ -249,7 +257,8 @@ public class CardManager : MonoBehaviourPunCallbacks
         Sprite shape = _cardShapes[figureData[0]];
         Color32 color = DictionaryConstants.FigureColors[figureData[1]];
         Card card = Instantiate(_cardPrefab);
-        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect, _playerDeck, _enemyDeck);
+        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect,
+            _playerDeck, _enemyDeck);
         card.SetCard(cardData, shape, color, cnNums);
         return (card, cardData);
     }
@@ -422,7 +431,6 @@ public class CardManager : MonoBehaviourPunCallbacks
         photonView.RPC(nameof(PickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
         EnemyPickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
         TurnManager.Instance.SetIsMyTurn(false);
-        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
     private void PushWrongButton()
@@ -440,7 +448,6 @@ public class CardManager : MonoBehaviourPunCallbacks
         PickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
         photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
         TurnManager.Instance.SetIsMyTurn(true);
-        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsInProgressKey, false);
     }
 
     public void CheckIfDeckEmpty()
@@ -450,7 +457,9 @@ public class CardManager : MonoBehaviourPunCallbacks
             if (_enemyDeckNum == 0)
             {
                 OnDeadlock();
+                return;
             }
+
             TurnManager.Instance.SetIsMyTurn(false);
         }
     }
@@ -477,6 +486,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             Debug.LogError("Deck Should Be Empty");
         }
+
         for (int i = 0; i < playedData.Count; i++)
         {
             if (playerDataIndexes.Contains(i))
@@ -488,6 +498,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                 _enemyDeckData.Add(playedData[i]);
             }
         }
+
         _playerDeckNum += _playerPlayedData.Count;
         _enemyDeckNum += _enemyPlayedData.Count;
         _playerPlayedData.Clear();
@@ -503,9 +514,8 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             enemyDeckDataDic.Add(i, _enemyDeckData[i]);
         }
-
+        photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic, true);
         DealAllCardsOnTables();
-        photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic);
     }
 
     private async void DealAllCardsOnTables()
@@ -525,13 +535,16 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             enemyCard.GatherAndDeal();
         }
-        // 美しくない
-        await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
-        
         Array.Clear(_playerCards, 0, _playerCards.Length);
         Array.Clear(_enemyCards, 0, _enemyCards.Length);
         Array.Clear(_playerCardData, 0, _playerCardData.Length);
         Array.Clear(_enemyCardData, 0, _enemyCardData.Length);
+        // 美しくない
+        await UniTask.Delay(TimeSpan.FromSeconds(2f));
+        GameProperties.SetCustomPropertyValue(
+            TurnManager.Instance.IsMasterClient
+                ? ConfigConstants.CustomPropertyKey.IsMasterCardPlaying
+                : ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying, false);
     }
 
     private void CheckExistsWinner()
@@ -561,7 +574,7 @@ public class CardManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic)
+    private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic, bool isCalledFromOnDeadlock)
     {
         _playerDeckNum += playerDeckDataDic.Count;
         _enemyDeckNum += enemyDeckDataDic.Count;
@@ -577,7 +590,10 @@ public class CardManager : MonoBehaviourPunCallbacks
             _enemyDeckData.Add(enemyDeckDataDic[i]);
         }
 
-        DealAllCardsOnTables();
+        if (isCalledFromOnDeadlock)
+        {
+            DealAllCardsOnTables();
+        }
     }
 
     [PunRPC]
@@ -601,7 +617,7 @@ public class CardManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    private void PickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
+    private async void PickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
     {
         foreach (var i in playerCardsIndexes)
         {
@@ -628,10 +644,13 @@ public class CardManager : MonoBehaviourPunCallbacks
         }
 
         CheckExistsWinner();
+        // 美しくない
+        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, false);
     }
 
     [PunRPC]
-    private void EnemyPickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
+    private async void EnemyPickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
     {
         foreach (var i in playerCardsIndexes)
         {
@@ -658,5 +677,8 @@ public class CardManager : MonoBehaviourPunCallbacks
         }
 
         CheckExistsWinner();
+        // 美しくない
+        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, false);
     }
 }
