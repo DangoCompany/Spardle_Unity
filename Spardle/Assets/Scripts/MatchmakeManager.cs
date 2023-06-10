@@ -16,6 +16,7 @@ public class MatchmakeManager : MonoBehaviourPunCallbacks
             if (PhotonNetwork.CurrentRoom.MaxPlayers == PhotonNetwork.CurrentRoom.PlayerCount)
             {
                 _hasMatchmade = true;
+                PhotonNetwork.CurrentRoom.IsOpen = false;
                 SceneManager.LoadScene("Main");
             }
         }
