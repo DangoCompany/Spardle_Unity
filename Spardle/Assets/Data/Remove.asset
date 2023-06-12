@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 79ca8744dd4b94e909d5f420c23627ee, type: 3}
-  m_Name: Substitute
+  m_Name: Remove
   m_EditorClassIdentifier: 
-  _effect: 4
-  _effectName: "\u4EE3\u7406"
-  _effectDescr: "\u53CC\u65B9\uFF1AC0\u306E\u30DC\u30BF\u30F3\u3092\u62BC\u3059\u3068\u304D\u3001\u4EE3\u308F\u308A\u306BC1\u306E\u30DC\u30BF\u30F3\u3092\u62BC\u3059"
+  _effect: 3
+  _effectName: "\u9664\u5916"
+  _effectDescr: "\u53CC\u65B9\uFF1A\u3053\u306E\u30AB\u30FC\u30C9\u304C\u56DE\u53CE\u3055\u308C\u305F\u6642\u3001\u540C\u3058\u7D75\u67C4\u306E\u30AB\u30FC\u30C9\u3092\u5168\u3066\u9664\u5916\u3059\u308B"

@@ -34,7 +34,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
     // デバッグ用
     public void OnPointerEnter()
     {
-        Debug.Log($"ShapeNum: {_shapeNum}\nColorNum: {_colorNum}\nColorArgs: {_colorArgs[0]}, {_colorArgs[1]}");
+        Debug.Log($"ShapeNum: {_shapeNum}\nColorNum: {_colorNum}\nColorArgs: {_colorArgs[0]}, {_colorArgs[1]}\nCardEffect: {_cardEffect}");
     }
 
     public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard, ConfigConstants.CardEffect cardEffect, Deck playerDeck, Deck enemyDeck)

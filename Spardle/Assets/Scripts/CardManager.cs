@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using Photon.Pun;
 using UniRx;
 using UniRx.Triggers;
@@ -14,7 +15,9 @@ public class CardManager : MonoBehaviourPunCallbacks
     [SerializeField] private CardData[] _cardData;
     [SerializeField] private Card _cardPrefab;
     [SerializeField] private Table[] _playerTables;
+    [SerializeField] private GameObject _playerRemovePoint;
     [SerializeField] private Table[] _enemyTables;
+    [SerializeField] private GameObject _enemyRemovePoint;
     [SerializeField] private Deck _playerDeck;
     [SerializeField] private Deck _enemyDeck;
     [SerializeField] private HalfDeck _playerTopHalfDeck;
@@ -22,11 +25,9 @@ public class CardManager : MonoBehaviourPunCallbacks
     [SerializeField] private HalfDeck _enemyTopHalfDeck;
     [SerializeField] private HalfDeck _enemyBottomHalfDeck;
     [SerializeField] private MatchOverPanel _matchOverPanel;
-    private int _playerDeckNum = 0;
-    public int PlayerDeckNum => _playerDeckNum;
-    private int _enemyDeckNum = 0;
+    public int PlayerDeckNum { get; private set; }
 
-    public int EnemyDeckNum => _enemyDeckNum;
+    public int EnemyDeckNum { get; private set; }
 
     // {Shape, Color}
     private List<int[]> _playerDeckData = new List<int[]>(ConfigConstants.TotalCardsNum);
@@ -41,7 +42,11 @@ public class CardManager : MonoBehaviourPunCallbacks
     private Card[] _playerCards = new Card[ConfigConstants.TableCount];
     private Card[] _enemyCards = new Card[ConfigConstants.TableCount];
     private List<int> _exceptedCardDataNums = new List<int>(ConfigConstants.CardDataNum);
+
     private int _tableNumberToPlace;
+
+    // {ShapeNum, IsMyCard, Index}
+    private int[] _removeIndex;
 
     private void Awake()
     {
@@ -59,12 +64,12 @@ public class CardManager : MonoBehaviourPunCallbacks
     {
         if (PhotonNetwork.IsMasterClient)
         {
-            _playerDeckNum += ConfigConstants.TotalCardsNum / 2;
-            _enemyDeckNum += ConfigConstants.TotalCardsNum / 2;
+            PlayerDeckNum += ConfigConstants.TotalCardsNum / 2;
+            EnemyDeckNum += ConfigConstants.TotalCardsNum / 2;
             DealCardsToPlayers();
-            Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(_playerDeckNum);
-            Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(_enemyDeckNum);
-            for (int i = 0; i < _playerDeckNum; i++)
+            Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(PlayerDeckNum);
+            Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(EnemyDeckNum);
+            for (int i = 0; i < PlayerDeckNum; i++)
             {
                 playerDeckDataDic.Add(i, _playerDeckData[i]);
                 enemyDeckDataDic.Add(i, _enemyDeckData[i]);
@@ -89,16 +94,19 @@ public class CardManager : MonoBehaviourPunCallbacks
                 {
                     if (CanPutActionButton())
                     {
-                        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
-                        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
+                        GameProperties.SetCustomPropertyValue(
+                            ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
+                        GameProperties.SetCustomPropertyValue(
+                            ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
                         PushWrongButton();
                         return;
                     }
 
                     GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsMasterCardPlaying, true);
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying, true);
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying,
+                        true);
                     int cardDataNum;
-                    int figureNum = UnityEngine.Random.Range(0, _playerDeckNum);
+                    int figureNum = UnityEngine.Random.Range(0, PlayerDeckNum);
                     int[] figureData = _playerDeckData[figureNum];
                     int[] cnNums = { 0, 0 };
                     DecideTableNumber();
@@ -110,42 +118,29 @@ public class CardManager : MonoBehaviourPunCallbacks
                                 _playerCards[_tableNumberToPlace].ColorArgs[0],
                                 _playerCards[_tableNumberToPlace].ColorArgs[1]);
                         }
+                        else if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Remove)
+                        {
+                            _removeIndex = null;
+                        }
 
                         Destroy(_playerCards[_tableNumberToPlace].gameObject);
                     }
 
-                    if (_playerCardData
-                        .Where(data => data != null)
-                        .Any(data => data.Effect == ConfigConstants.CardEffect.Exchange))
-                    {
-                        _exceptedCardDataNums.Add((int)ConfigConstants.CardEffect.Exchange);
-                    }
-
-                    if (_playerCardData
-                            .Where(data => data != null)
-                            .Any(data => data.Effect == ConfigConstants.CardEffect.Substitute) ||
-                        _enemyCardData
-                            .Where(data => data != null)
-                            .Any(data => data.Effect == ConfigConstants.CardEffect.Substitute))
-                    {
-                        _exceptedCardDataNums.Add((int)ConfigConstants.CardEffect.Substitute);
-                    }
-
+                    ExceptCardData(ConfigConstants.CardEffect.Exchange, false);
+                    ExceptCardData(ConfigConstants.CardEffect.Substitute, true);
+                    ExceptCardData(ConfigConstants.CardEffect.Remove, true);
                     cardDataNum = DecideCardDataNumber();
-                    if (_cardData != null)
+                    if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
+                        _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
                     {
-                        if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
-                            _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
-                        {
-                            List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
-                            cnNums[0] = UnityEngine.Random.Range(0, 3);
-                            colorIndexes.RemoveAt(cnNums[0]);
-                            cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
-                        }
-                        else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
-                        {
-                            cnNums[0] = UnityEngine.Random.Range(0, 3);
-                        }
+                        List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
+                        cnNums[0] = UnityEngine.Random.Range(0, 3);
+                        colorIndexes.RemoveAt(cnNums[0]);
+                        cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
+                    }
+                    else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
+                    {
+                        cnNums[0] = UnityEngine.Random.Range(0, 3);
                     }
 
                     (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
@@ -163,12 +158,30 @@ public class CardManager : MonoBehaviourPunCallbacks
                         card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
                     }
 
+                    if (_playerCardData[tableNumber].Effect == ConfigConstants.CardEffect.Remove)
+                    {
+                        _removeIndex = new[]
+                        {
+                            _playerCards[tableNumber].ShapeNum,
+                            1,
+                            tableNumber
+                        };
+                    }
+
                     card.OnClickCard
                         .Subscribe(delta => OnReceiveCardAction(delta, card, tableNumber))
                         .AddTo(card);
                     _playerTables[tableNumber].SetCardPos(card);
                     _playerPlayedData.Add(new int[] { tableNumber, figureData[0], figureData[1] });
-                    _playerDeckNum--;
+                    if (PlayerDeckNum > 0)
+                    {
+                        PlayerDeckNum--;
+                    }
+                    else
+                    {
+                        throw new Exception("Deck Empty");
+                    }
+
                     _playerDeckData.Remove(figureData);
                     photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
                         tableNumber);
@@ -235,6 +248,20 @@ public class CardManager : MonoBehaviourPunCallbacks
         return availableNums[UnityEngine.Random.Range(0, availableNums.Count())];
     }
 
+    private void ExceptCardData(ConfigConstants.CardEffect cardEffect, bool dependsOnBoth)
+    {
+        if (_playerCardData
+                .Where(data => data != null)
+                .Any(data => data.Effect == cardEffect) ||
+            (_enemyCardData
+                 .Where(data => data != null)
+                 .Any(data => data.Effect == cardEffect) &&
+             dependsOnBoth))
+        {
+            _exceptedCardDataNums.Add((int)cardEffect);
+        }
+    }
+
     private bool CanPutActionButton()
     {
         var playerCards = _playerCards
@@ -253,10 +280,10 @@ public class CardManager : MonoBehaviourPunCallbacks
 
     private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums, bool isMyCard)
     {
-        CardData cardData = _cardData[cardDataNum];
         Sprite shape = _cardShapes[figureData[0]];
         Color32 color = DictionaryConstants.FigureColors[figureData[1]];
         Card card = Instantiate(_cardPrefab);
+        CardData cardData = _cardData[cardDataNum];
         card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect,
             _playerDeck, _enemyDeck);
         card.SetCard(cardData, shape, color, cnNums);
@@ -428,8 +455,21 @@ public class CardManager : MonoBehaviourPunCallbacks
 
     private void PushCorrectButton(int[] playerCardsIndexes, int[] enemyCardsIndexes)
     {
-        photonView.RPC(nameof(PickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
-        EnemyPickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
+        int? removeShapeNum = null;
+        if (_removeIndex != null)
+        {
+            if ((_removeIndex[1] == 1 && playerCardsIndexes.Contains(_removeIndex[2])) ||
+                (_removeIndex[1] == 0 && enemyCardsIndexes.Contains(_removeIndex[2])))
+            {
+                removeShapeNum = _removeIndex[0];
+            }
+        }
+
+        Dictionary<int, int[]>[] cardUnderRemovedDicts = GetCardUnderRemovedDicts(removeShapeNum);
+        photonView.RPC(nameof(PickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes,
+            removeShapeNum, cardUnderRemovedDicts[1], cardUnderRemovedDicts[0]);
+        EnemyPickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes, removeShapeNum, cardUnderRemovedDicts[0],
+            cardUnderRemovedDicts[1]);
         TurnManager.Instance.SetIsMyTurn(false);
     }
 
@@ -445,16 +485,122 @@ public class CardManager : MonoBehaviourPunCallbacks
             .Where(item => item.EnemyCard != null)
             .Select(item => item.Index)
             .ToArray();
-        PickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes);
-        photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes);
+        int? removeShapeNum = null;
+        if (_removeIndex != null)
+        {
+            if ((_removeIndex[1] == 1 && playerCardsIndexes.Contains(_removeIndex[2])) ||
+                (_removeIndex[1] == 0 && enemyCardsIndexes.Contains(_removeIndex[2])))
+            {
+                removeShapeNum = _removeIndex[0];
+            }
+        }
+
+        Dictionary<int, int[]>[] cardUnderRemovedDicts = GetCardUnderRemovedDicts(removeShapeNum);
+        PickUpDiscardPile(playerCardsIndexes, enemyCardsIndexes, removeShapeNum, cardUnderRemovedDicts[0],
+            cardUnderRemovedDicts[1]);
+        photonView.RPC(nameof(EnemyPickUpDiscardPile), RpcTarget.Others, enemyCardsIndexes, playerCardsIndexes,
+            removeShapeNum, cardUnderRemovedDicts[1], cardUnderRemovedDicts[0]);
         TurnManager.Instance.SetIsMyTurn(true);
+    }
+
+    private Dictionary<int, int[]>[] GetCardUnderRemovedDicts(int? removeShapeNum)
+    {
+        int[] removeIndexes = _playerCards
+            .Select((playerCard, cardIndex) => new { Index = cardIndex, PlayerCard = playerCard })
+            .Where(item => item.PlayerCard != null)
+            .Where(item => item.PlayerCard.ShapeNum == removeShapeNum)
+            .Select(item => item.Index)
+            .ToArray();
+        Dictionary<int, int[]> playerCardUnderRemovedDict =
+            new Dictionary<int, int[]>(removeIndexes.Length);
+        foreach (var i in removeIndexes)
+        {
+            // 一枚下のカードを探して表示し、カードも入れ替える
+            int cardDataNum;
+            int[] cnNums = { 0, 0 };
+            ExceptCardData(ConfigConstants.CardEffect.Exchange, false);
+            ExceptCardData(ConfigConstants.CardEffect.Substitute, true);
+            ExceptCardData(ConfigConstants.CardEffect.Remove, true);
+            cardDataNum = DecideCardDataNumber();
+            if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
+                _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
+            {
+                List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
+                cnNums[0] = UnityEngine.Random.Range(0, 3);
+                colorIndexes.RemoveAt(cnNums[0]);
+                cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
+            }
+            else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
+            {
+                cnNums[0] = UnityEngine.Random.Range(0, 3);
+            }
+
+            List<int[]> filteredList = _playerPlayedData.Where(data => data[0] == i).ToList();
+            int[] figureData = filteredList.ElementAtOrDefault(filteredList.Count - 2)?
+                .Skip(1)
+                .Take(2)
+                .ToArray() ?? new int[] { DictionaryConstants.ByteMax, DictionaryConstants.ByteMax };
+            int[] data = new int[5];
+            data[0] = cardDataNum;
+            Array.Copy(figureData, 0, data, 1, 2);
+            Array.Copy(cnNums, 0, data, 3, 2);
+            playerCardUnderRemovedDict.Add(i, data);
+        }
+
+        removeIndexes = _enemyCards
+            .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+            .Where(item => item.EnemyCard != null)
+            .Where(item => item.EnemyCard.ShapeNum == removeShapeNum)
+            .Select(item => item.Index)
+            .ToArray();
+        Dictionary<int, int[]> enemyCardUnderRemovedDict =
+            new Dictionary<int, int[]>(removeIndexes.Length);
+        foreach (var i in removeIndexes)
+        {
+            // 一枚下のカードを探して表示し、カードも入れ替える
+            int cardDataNum;
+            int[] cnNums = { 0, 0 };
+            ExceptCardData(ConfigConstants.CardEffect.Exchange, false);
+            ExceptCardData(ConfigConstants.CardEffect.Substitute, true);
+            ExceptCardData(ConfigConstants.CardEffect.Remove, true);
+            cardDataNum = DecideCardDataNumber();
+            if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
+                _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
+            {
+                List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
+                cnNums[0] = UnityEngine.Random.Range(0, 3);
+                colorIndexes.RemoveAt(cnNums[0]);
+                cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
+            }
+            else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
+            {
+                cnNums[0] = UnityEngine.Random.Range(0, 3);
+            }
+
+            List<int[]> filteredList = _enemyPlayedData.Where(data => data[0] == i).ToList();
+            int[] figureData = filteredList.ElementAtOrDefault(filteredList.Count - 2)?
+                .Skip(1)
+                .Take(2)
+                .ToArray() ?? new int[] { DictionaryConstants.ByteMax, DictionaryConstants.ByteMax };
+            int[] data = new int[5];
+            data[0] = cardDataNum;
+            Array.Copy(figureData, 0, data, 1, 2);
+            Array.Copy(cnNums, 0, data, 3, 2);
+            enemyCardUnderRemovedDict.Add(i, data);
+        }
+
+        return new Dictionary<int, int[]>[]
+        {
+            playerCardUnderRemovedDict,
+            enemyCardUnderRemovedDict
+        };
     }
 
     public void CheckIfDeckEmpty()
     {
-        if (_playerDeckNum == 0)
+        if (PlayerDeckNum == 0)
         {
-            if (_enemyDeckNum == 0)
+            if (EnemyDeckNum == 0)
             {
                 OnDeadlock();
                 return;
@@ -499,21 +645,22 @@ public class CardManager : MonoBehaviourPunCallbacks
             }
         }
 
-        _playerDeckNum += _playerPlayedData.Count;
-        _enemyDeckNum += _enemyPlayedData.Count;
+        PlayerDeckNum += _playerPlayedData.Count;
+        EnemyDeckNum += _enemyPlayedData.Count;
         _playerPlayedData.Clear();
         _enemyPlayedData.Clear();
-        Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(_playerDeckNum);
-        Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(_enemyDeckNum);
-        for (int i = 0; i < _playerDeckNum; i++)
+        Dictionary<int, int[]> playerDeckDataDic = new Dictionary<int, int[]>(PlayerDeckNum);
+        Dictionary<int, int[]> enemyDeckDataDic = new Dictionary<int, int[]>(EnemyDeckNum);
+        for (int i = 0; i < PlayerDeckNum; i++)
         {
             playerDeckDataDic.Add(i, _playerDeckData[i]);
         }
 
-        for (int i = 0; i < _enemyDeckNum; i++)
+        for (int i = 0; i < EnemyDeckNum; i++)
         {
             enemyDeckDataDic.Add(i, _enemyDeckData[i]);
         }
+
         photonView.RPC(nameof(ReceiveDecksData), RpcTarget.Others, enemyDeckDataDic, playerDeckDataDic, true);
         DealAllCardsOnTables();
     }
@@ -535,6 +682,7 @@ public class CardManager : MonoBehaviourPunCallbacks
         {
             enemyCard.GatherAndDeal();
         }
+
         Array.Clear(_playerCards, 0, _playerCards.Length);
         Array.Clear(_enemyCards, 0, _enemyCards.Length);
         Array.Clear(_playerCardData, 0, _playerCardData.Length);
@@ -549,12 +697,12 @@ public class CardManager : MonoBehaviourPunCallbacks
 
     private void CheckExistsWinner()
     {
-        if (_playerDeckNum == 0 && _playerPlayedData.Count == 0)
+        if (PlayerDeckNum == 0 && _playerPlayedData.Count == 0)
         {
             _matchOverPanel.gameObject.SetActive(true);
             _matchOverPanel.SetResultText(true);
         }
-        else if (_enemyDeckNum == 0 && _enemyPlayedData.Count == 0)
+        else if (EnemyDeckNum == 0 && _enemyPlayedData.Count == 0)
         {
             _matchOverPanel.gameObject.SetActive(true);
             _matchOverPanel.SetResultText(false);
@@ -574,10 +722,11 @@ public class CardManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic, bool isCalledFromOnDeadlock)
+    private void ReceiveDecksData(Dictionary<int, int[]> playerDeckDataDic, Dictionary<int, int[]> enemyDeckDataDic,
+        bool isCalledFromOnDeadlock)
     {
-        _playerDeckNum += playerDeckDataDic.Count;
-        _enemyDeckNum += enemyDeckDataDic.Count;
+        PlayerDeckNum += playerDeckDataDic.Count;
+        EnemyDeckNum += enemyDeckDataDic.Count;
         _playerPlayedData.Clear();
         _enemyPlayedData.Clear();
         for (int i = 0; i < playerDeckDataDic.Count; i++)
@@ -606,41 +755,169 @@ public class CardManager : MonoBehaviourPunCallbacks
 
         (_enemyCards[tableNum], _enemyCardData[tableNum]) = GenerateCard(cardDataNum, figureData, cnNums, false);
         _enemyTables[tableNum].SetCardPos(_enemyCards[tableNum]);
-        if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange)
+        if (_enemyCardData[tableNum].Effect == ConfigConstants.CardEffect.Exchange)
         {
             ApplyExchangeToMyCards(cnNums[0], cnNums[1]);
         }
 
+        if (_enemyCardData[tableNum].Effect == ConfigConstants.CardEffect.Remove)
+        {
+            _removeIndex = new[]
+            {
+                _enemyCards[tableNum].ShapeNum,
+                0,
+                tableNum
+            };
+        }
+
         _enemyPlayedData.Add(new int[] { tableNum, figureData[0], figureData[1] });
-        _enemyDeckNum--;
+        EnemyDeckNum--;
         _enemyDeckData.RemoveAll(data => data.SequenceEqual(figureData));
     }
 
     [PunRPC]
-    private async void PickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
+    private async void PickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes, int? removeShapeNum,
+        Dictionary<int, int[]> playerCardUnderRemovedDict,
+        Dictionary<int, int[]> enemyCardUnderRemovedDict)
     {
+        if (removeShapeNum != null)
+        {
+            _removeIndex = null;
+        }
+
+        int removeCount = _playerDeckData.Count(data => data[0] == removeShapeNum);
+        if (removeCount > 0)
+        {
+            // Animation
+            _playerDeckData.RemoveAll(data => data[0] == removeShapeNum);
+            PlayerDeckNum -= removeCount;
+        }
+
+        removeCount = _enemyDeckData.Count(data => data[0] == removeShapeNum);
+        if (removeCount > 0)
+        {
+            // Animation
+            _enemyDeckData.RemoveAll(data => data[0] == removeShapeNum);
+            EnemyDeckNum -= removeCount;
+        }
+
+        foreach (var pair in playerCardUnderRemovedDict)
+        {
+            int i = pair.Key;
+            int cardDataNum = pair.Value[0];
+            int[] figureData = new int[2];
+            Array.Copy(pair.Value, 1, figureData, 0, 2);
+            int[] cnNums = new int[2];
+            Array.Copy(pair.Value, 3, cnNums, 0, 2);
+            GameObject cardGameObject = _playerCards[i].gameObject;
+            _playerCards[i].transform.DOMove(_playerRemovePoint.transform.position, 1f).SetEase(Ease.Linear)
+                .OnComplete(() => { Destroy(cardGameObject); });
+            if (figureData.Any(x => x != DictionaryConstants.ByteMax))
+            {
+                (_playerCards[i], _playerCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, true);
+                Card card = _playerCards[i];
+                Card[] enemyExchangeCards = _enemyCards
+                    .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+                    .Where(item => item.EnemyCard != null)
+                    .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
+                    .Select(item => item.EnemyCard)
+                    .ToArray();
+                foreach (var enemyExchangeCard in enemyExchangeCards)
+                {
+                    card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
+                }
+
+                if (_playerCardData[i].Effect == ConfigConstants.CardEffect.Remove)
+                {
+                    _removeIndex = new[]
+                    {
+                        _playerCards[i].ShapeNum,
+                        1,
+                        i
+                    };
+                }
+
+                card.OnClickCard
+                    .Subscribe(delta => OnReceiveCardAction(delta, card, i))
+                    .AddTo(card);
+                _playerTables[i].SetCardPos(card);
+            }
+            else
+            {
+                _playerCards[i] = null;
+                _playerCardData[i] = null;
+            }
+        }
+
         foreach (var i in playerCardsIndexes)
         {
-            _playerCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
-            _playerCards[i] = null;
+            if (_playerCards[i] != null)
+            {
+                _playerCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
+                _playerCards[i] = null;
+                _playerCardData[i] = null;
+            }
+
             List<int[]> playerPlayedData = _playerPlayedData.Where(data => data[0] == i)
+                .Where(data => data[1] != removeShapeNum)
                 .Select(data => new int[] { data[1], data[2] }).ToList();
             _playerDeckData.AddRange(playerPlayedData);
-            _playerDeckNum += playerPlayedData.Count;
-            _playerPlayedData.RemoveAll(data => data[0] == i);
-            _playerCardData[i] = null;
+            PlayerDeckNum += playerPlayedData.Count;
+            _playerPlayedData.RemoveAll(data => data[0] == i || data[1] == removeShapeNum);
+        }
+
+        foreach (var pair in enemyCardUnderRemovedDict)
+        {
+            int i = pair.Key;
+            int cardDataNum = pair.Value[0];
+            int[] figureData = new int[2];
+            Array.Copy(pair.Value, 1, figureData, 0, 2);
+            int[] cnNums = new int[2];
+            Array.Copy(pair.Value, 3, cnNums, 0, 2);
+            GameObject cardGameObject = _enemyCards[i].gameObject;
+            _enemyCards[i].transform.DOMove(_playerRemovePoint.transform.position, 1f).SetEase(Ease.Linear)
+                .OnComplete(() => { Destroy(cardGameObject); });
+            if (figureData.Any(x => x != DictionaryConstants.ByteMax))
+            {
+                (_enemyCards[i], _enemyCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, false);
+                _enemyTables[i].SetCardPos(_enemyCards[i]);
+                if (_enemyCardData[i].Effect == ConfigConstants.CardEffect.Exchange)
+                {
+                    ApplyExchangeToMyCards(cnNums[0], cnNums[1]);
+                }
+
+                if (_enemyCardData[i].Effect == ConfigConstants.CardEffect.Remove)
+                {
+                    _removeIndex = new[]
+                    {
+                        _enemyCards[i].ShapeNum,
+                        0,
+                        i
+                    };
+                }
+            }
+            else
+            {
+                _enemyCards[i] = null;
+                _enemyCardData[i] = null;
+            }
         }
 
         foreach (var i in enemyCardsIndexes)
         {
-            _enemyCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
-            _enemyCards[i] = null;
+            if (_enemyCards[i] != null)
+            {
+                _enemyCards[i].PickedUp(_playerDeck, _playerTopHalfDeck, _playerBottomHalfDeck);
+                _enemyCards[i] = null;
+                _enemyCardData[i] = null;
+            }
+
             List<int[]> enemyPlayedData = _enemyPlayedData.Where(data => data[0] == i)
+                .Where(data => data[1] != removeShapeNum)
                 .Select(data => new int[] { data[1], data[2] }).ToList();
             _playerDeckData.AddRange(enemyPlayedData);
-            _playerDeckNum += enemyPlayedData.Count;
-            _enemyPlayedData.RemoveAll(data => data[0] == i);
-            _enemyCardData[i] = null;
+            PlayerDeckNum += enemyPlayedData.Count;
+            _enemyPlayedData.RemoveAll(data => data[0] == i || data[1] == removeShapeNum);
         }
 
         CheckExistsWinner();
@@ -650,30 +927,148 @@ public class CardManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    private async void EnemyPickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes)
+    private async void EnemyPickUpDiscardPile(int[] playerCardsIndexes, int[] enemyCardsIndexes, int? removeShapeNum,
+        Dictionary<int, int[]> playerCardUnderRemovedDict,
+        Dictionary<int, int[]> enemyCardUnderRemovedDict)
     {
+        if (removeShapeNum != null)
+        {
+            _removeIndex = null;
+        }
+
+        int removeCount = _playerDeckData.Count(data => data[0] == removeShapeNum);
+        if (removeCount > 0)
+        {
+            // Animation
+            _playerDeckData.RemoveAll(data => data[0] == removeShapeNum);
+            PlayerDeckNum -= removeCount;
+        }
+
+        removeCount = _enemyDeckData.Count(data => data[0] == removeShapeNum);
+        if (removeCount > 0)
+        {
+            // Animation
+            _enemyDeckData.RemoveAll(data => data[0] == removeShapeNum);
+            EnemyDeckNum -= removeCount;
+        }
+
+        foreach (var pair in playerCardUnderRemovedDict)
+        {
+            int i = pair.Key;
+            int cardDataNum = pair.Value[0];
+            int[] figureData = new int[2];
+            Array.Copy(pair.Value, 1, figureData, 0, 2);
+            int[] cnNums = new int[2];
+            Array.Copy(pair.Value, 3, cnNums, 0, 2);
+            GameObject cardGameObject = _playerCards[i].gameObject;
+            _playerCards[i].transform.DOMove(_enemyRemovePoint.transform.position, 1f).SetEase(Ease.Linear)
+                .OnComplete(() => { Destroy(cardGameObject); });
+            if (figureData.Any(x => x != DictionaryConstants.ByteMax))
+            {
+                (_playerCards[i], _playerCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, true);
+                Card card = _playerCards[i];
+                Card[] enemyExchangeCards = _enemyCards
+                    .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+                    .Where(item => item.EnemyCard != null)
+                    .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
+                    .Select(item => item.EnemyCard)
+                    .ToArray();
+                foreach (var enemyExchangeCard in enemyExchangeCards)
+                {
+                    card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
+                }
+
+                if (_playerCardData[i].Effect == ConfigConstants.CardEffect.Remove)
+                {
+                    _removeIndex = new[]
+                    {
+                        _playerCards[i].ShapeNum,
+                        1,
+                        i
+                    };
+                }
+
+                card.OnClickCard
+                    .Subscribe(delta => OnReceiveCardAction(delta, card, i))
+                    .AddTo(card);
+                _playerTables[i].SetCardPos(card);
+            }
+            else
+            {
+                _playerCards[i] = null;
+                _playerCardData[i] = null;
+            }
+        }
+
         foreach (var i in playerCardsIndexes)
         {
-            _playerCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
-            _playerCards[i] = null;
+            if (_playerCards[i] != null)
+            {
+                _playerCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
+                _playerCards[i] = null;
+                _playerCardData[i] = null;
+            }
+
             List<int[]> playerPlayedData = _playerPlayedData.Where(data => data[0] == i)
+                .Where(data => data[1] != removeShapeNum)
                 .Select(data => new int[] { data[1], data[2] }).ToList();
             _enemyDeckData.AddRange(playerPlayedData);
-            _enemyDeckNum += playerPlayedData.Count;
-            _playerPlayedData.RemoveAll(data => data[0] == i);
-            _playerCardData[i] = null;
+            EnemyDeckNum += playerPlayedData.Count;
+            _playerPlayedData.RemoveAll(data => data[0] == i || data[1] == removeShapeNum);
+        }
+
+        foreach (var pair in enemyCardUnderRemovedDict)
+        {
+            int i = pair.Key;
+            int cardDataNum = pair.Value[0];
+            int[] figureData = new int[2];
+            Array.Copy(pair.Value, 1, figureData, 0, 2);
+            int[] cnNums = new int[2];
+            Array.Copy(pair.Value, 3, cnNums, 0, 2);
+            GameObject cardGameObject = _enemyCards[i].gameObject;
+            _enemyCards[i].transform.DOMove(_enemyRemovePoint.transform.position, 1f).SetEase(Ease.Linear)
+                .OnComplete(() => { Destroy(cardGameObject); });
+            if (figureData.Any(x => x != DictionaryConstants.ByteMax))
+            {
+                (_enemyCards[i], _enemyCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, false);
+                _enemyTables[i].SetCardPos(_enemyCards[i]);
+                if (_enemyCardData[i].Effect == ConfigConstants.CardEffect.Exchange)
+                {
+                    ApplyExchangeToMyCards(cnNums[0], cnNums[1]);
+                }
+
+                if (_enemyCardData[i].Effect == ConfigConstants.CardEffect.Remove)
+                {
+                    _removeIndex = new[]
+                    {
+                        _enemyCards[i].ShapeNum,
+                        0,
+                        i
+                    };
+                }
+            }
+            else
+            {
+                _enemyCards[i] = null;
+                _enemyCardData[i] = null;
+            }
         }
 
         foreach (var i in enemyCardsIndexes)
         {
-            _enemyCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
-            _enemyCards[i] = null;
+            if (_enemyCards[i] != null)
+            {
+                _enemyCards[i].PickedUp(_enemyDeck, _enemyTopHalfDeck, _enemyBottomHalfDeck);
+                _enemyCards[i] = null;
+                _enemyCardData[i] = null;
+            }
+
             List<int[]> enemyPlayedData = _enemyPlayedData.Where(data => data[0] == i)
+                .Where(data => data[1] != removeShapeNum)
                 .Select(data => new int[] { data[1], data[2] }).ToList();
             _enemyDeckData.AddRange(enemyPlayedData);
-            _enemyDeckNum += enemyPlayedData.Count;
-            _enemyPlayedData.RemoveAll(data => data[0] == i);
-            _enemyCardData[i] = null;
+            EnemyDeckNum += enemyPlayedData.Count;
+            _enemyPlayedData.RemoveAll(data => data[0] == i || data[1] == removeShapeNum);
         }
 
         CheckExistsWinner();

@@ -36,4 +36,6 @@ public static class DictionaryConstants
         "<color=#e60033>相手のターン</color>",
         "<color=#0095d9>あなたのターン</color>"
     };
+    
+    public static readonly int ByteMax = 255;
 }

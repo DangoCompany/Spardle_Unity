@@ -40,7 +40,6 @@ public class TurnManager : MonoBehaviour
 
     public void UpdateMyTurn(bool isMasterClientTurn)
     {
-        Debug.Log(IsMasterClient + "," + CardManager.Instance.PlayerDeckNum + "," + CardManager.Instance.EnemyDeckNum);
         IsMyTurn = !(isMasterClientTurn ^ IsMasterClient);
         if (IsMyTurn)
         {
