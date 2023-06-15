@@ -1,25 +1,34 @@
+using System.Threading;
 using UnityEngine.SceneManagement;
 using Photon.Pun;
 using Photon.Realtime;
+using UniRx;
+using UniRx.Triggers;
 using UnityEngine;
 
 public class MatchmakeManager : MonoBehaviourPunCallbacks
 {
+    [SerializeField] private SpardleTitle _spardleTitle;
     private bool _isInRoom;
     private bool _hasMatchmade;
     private byte _maxPlayerNum;
+    private CancellationTokenSource _cts;
 
-    private void Update()
+    private void Start()
     {
-        if (_isInRoom && !_hasMatchmade)
-        {
-            if (PhotonNetwork.CurrentRoom.MaxPlayers == PhotonNetwork.CurrentRoom.PlayerCount)
+        _cts = new CancellationTokenSource();
+        _spardleTitle.AnimateTitle(_cts.Token).Forget();
+        this.UpdateAsObservable()
+            .Where(_ => _isInRoom && !_hasMatchmade)
+            .Where(_ => PhotonNetwork.CurrentRoom.MaxPlayers == PhotonNetwork.CurrentRoom.PlayerCount)
+            .Subscribe(_ =>
             {
                 _hasMatchmade = true;
                 PhotonNetwork.CurrentRoom.IsOpen = false;
+                _cts.Cancel();
+                _cts.Dispose();
                 SceneManager.LoadScene("Main");
-            }
-        }
+            });
     }
 
     public void OnClickConnectToMasterServer()

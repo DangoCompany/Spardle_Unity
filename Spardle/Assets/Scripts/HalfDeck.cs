@@ -8,6 +8,12 @@ public class HalfDeck : MonoBehaviour
 
     public void Shuffle()
     {
+        CreateShuffleSequence();
+        _shuffle.Play();
+    }
+
+    private void CreateShuffleSequence()
+    {
         _shuffle = DOTween.Sequence();
         if (transform.localPosition.y >= 0)
         {
@@ -42,6 +48,5 @@ public class HalfDeck : MonoBehaviour
                 _deck.gameObject.SetActive(true);
                 gameObject.SetActive(false);
             });
-        _shuffle.Play();
     }
 }
