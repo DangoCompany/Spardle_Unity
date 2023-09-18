@@ -26,14 +26,12 @@ public class CardManager : MonoBehaviourPunCallbacks
     [SerializeField] private HalfDeck _enemyBottomHalfDeck;
     [SerializeField] private MatchOverPanel _matchOverPanel;
     public int PlayerDeckNum { get; private set; }
-
     public int EnemyDeckNum { get; private set; }
 
     // {Shape, Color}
     private List<int[]> _playerDeckData = new List<int[]>(ConfigConstants.TotalCardsNum);
     private List<int[]> _enemyDeckData = new List<int[]>(ConfigConstants.TotalCardsNum);
     private CardData[] _playerCardData = new CardData[ConfigConstants.TableCount];
-
     private CardData[] _enemyCardData = new CardData[ConfigConstants.TableCount];
 
     // {Index, Shape, Color}

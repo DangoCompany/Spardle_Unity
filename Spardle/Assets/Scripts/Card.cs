@@ -5,6 +5,7 @@ using DG.Tweening;
 using UniRx;
 using UniRx.Triggers;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 public class Card : MonoBehaviour, IPointerDownHandler
 {
@@ -28,8 +29,10 @@ public class Card : MonoBehaviour, IPointerDownHandler
     private bool _isClickedCard;
     private Vector2 _clickStartPosition;
     private Subject<Vector2> _onClickCard = new Subject<Vector2>();
+    private Subject<Unit> _onClicking = new Subject<Unit>();
 
     public IObservable<Vector2> OnClickCard => _onClickCard;
+    public IObservable<Unit> OnClicking => _onClicking;
 
     // デバッグ用
     public void OnPointerEnter()
@@ -50,26 +53,42 @@ public class Card : MonoBehaviour, IPointerDownHandler
 
     private void Start()
     {
-        this.OnMouseUpAsObservable()
-            .Where(_ => _isMyCard)
-            .Where(_ => _isClickedCard)
-            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                .IsMasterCardPlaying))
-            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                .IsNonMasterCardPlaying))
-            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                .IsSenderActionInProgress))
-            .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                .IsReceiverActionInProgress))
-            .Select(_ => new Vector2(Input.mousePosition.x, Input.mousePosition.y))
-            .Subscribe(clickEndPosition =>
-            {
-                GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
-                GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
-                _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
-                _isClickedCard = false;
-                _actionButton.SetActive(false);
-            });
+        if (SceneManager.GetActiveScene().name == "Main")
+        {
+            this.OnMouseUpAsObservable()
+                .Where(_ => _isMyCard)
+                .Where(_ => _isClickedCard)
+                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                    .IsMasterCardPlaying))
+                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                    .IsNonMasterCardPlaying))
+                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                    .IsSenderActionInProgress))
+                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
+                    .IsReceiverActionInProgress))
+                .Select(_ => new Vector2(Input.mousePosition.x, Input.mousePosition.y))
+                .Subscribe(clickEndPosition =>
+                {
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
+                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
+                    _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
+                    _isClickedCard = false;
+                    _actionButton.SetActive(false);
+                });
+        }
+        else if (SceneManager.GetActiveScene().name == "StoryMode")
+        {
+            this.OnMouseUpAsObservable()
+                .Where(_ => _isMyCard)
+                .Where(_ => _isClickedCard)
+                .Select(_ => new Vector2(Input.mousePosition.x, Input.mousePosition.y))
+                .Subscribe(clickEndPosition =>
+                {
+                    _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
+                    _isClickedCard = false;
+                    _actionButton.SetActive(false);
+                });
+        }
     }
 
     private void OnDestroy()
@@ -87,6 +106,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
             _actionButton.SetActive(true);
             _actionButton.transform.position = new Vector3(Camera.main.ScreenToWorldPoint(_clickStartPosition).x, Camera.main.ScreenToWorldPoint(_clickStartPosition).y, 0);
             _actionButton.GetComponent<ActionButton>().SetButtonPosition(_buttonColors);
+            _onClicking.OnNext(Unit.Default);
         }
     }
 

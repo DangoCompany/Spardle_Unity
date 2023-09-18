@@ -15,6 +15,6 @@ public class MatchOverPanel : MonoBehaviour
     {
         // ルームから退出する
         PhotonNetwork.LeaveRoom();
-        SceneManager.LoadScene("Matchmaking");
+        SceneManager.LoadScene("Title");
     }
 }
