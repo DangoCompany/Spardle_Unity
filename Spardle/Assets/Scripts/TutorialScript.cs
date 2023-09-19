@@ -52,7 +52,7 @@ public class TutorialScript : MonoBehaviour
         }
 
         (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
-            GenerateCard(cardDataNum, figureData, cnNums, true);
+            GenerateCard(cardDataNum, figureData, cnNums, _tableNumberToPlace, true);
         _playerTables[_tableNumberToPlace].SetCardPos(_playerCards[_tableNumberToPlace]);
     }
 
@@ -66,7 +66,7 @@ public class TutorialScript : MonoBehaviour
         }
 
         (_enemyCards[_enemyTableNumberToPlace], _enemyCardData[_enemyTableNumberToPlace]) =
-            GenerateCard(cardDataNum, figureData, cnNums, false);
+            GenerateCard(cardDataNum, figureData, cnNums, _enemyTableNumberToPlace, false);
         _enemyTables[_enemyTableNumberToPlace].SetCardPos(_enemyCards[_enemyTableNumberToPlace]);
     }
 
@@ -117,13 +117,13 @@ public class TutorialScript : MonoBehaviour
         _enemyCards[_enemyTableNum] = null;
     }
 
-    private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums, bool isMyCard)
+    private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums, int tableNumber, bool isMyCard)
     {
         Sprite shape = _cardShapes[figureData[0]];
         Color32 color = DictionaryConstants.FigureColors[figureData[1]];
         Card card = Instantiate(_cardPrefab);
         CardData cardData = _cardData[cardDataNum];
-        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect,
+        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, tableNumber, isMyCard, cardData.Effect,
             _playerDeck, _enemyDeck);
         card.SetCard(cardData, shape, color, cnNums);
         return (card, cardData);

@@ -1,4 +1,5 @@
 using System;
+using ExitGames.Client.Photon;
 using Photon.Pun;
 using UniRx;
 using UnityEngine;
@@ -31,10 +32,15 @@ public class TurnManager : MonoBehaviour
         {
             GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsMasterClientTurnKey,
                 UnityEngine.Random.Range(0, 2) == 1);
-            GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsMasterCardPlaying, false);
-            GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying, false);
-            GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, false);
-            GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, false);
+            PhotonNetwork.CurrentRoom.SetCustomProperties(
+                new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], 0 } }
+            );
+            PhotonNetwork.CurrentRoom.SetCustomProperties(
+                new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsWrongPlayingKey], 0 } }
+            );
+            PhotonNetwork.CurrentRoom.SetCustomProperties(
+                new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], 0 } }
+            );
         }
     }
 
@@ -48,10 +54,9 @@ public class TurnManager : MonoBehaviour
         
         if (CardManager.Instance.PlayerDeckNum != 0 || !IsMyTurn)
         {
-            GameProperties.SetCustomPropertyValue(
-                IsMasterClient
-                    ? ConfigConstants.CustomPropertyKey.IsMasterCardPlaying
-                    : ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying, false);
+            PhotonNetwork.CurrentRoom.SetCustomProperties(
+                new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], 0 } }
+            );
         }
     }
 

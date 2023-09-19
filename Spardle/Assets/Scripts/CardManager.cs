@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
+using ExitGames.Client.Photon;
 using Photon.Pun;
 using UniRx;
 using UniRx.Triggers;
@@ -46,6 +47,8 @@ public class CardManager : MonoBehaviourPunCallbacks
     // {ShapeNum, IsMyCard, Index}
     private int[] _removeIndex;
 
+    public int PointedTableNumber;
+
     private void Awake()
     {
         if (Instance == null)
@@ -81,111 +84,121 @@ public class CardManager : MonoBehaviourPunCallbacks
             .Where(_ => TurnManager.Instance.IsMyTurn)
             .Subscribe(async _ =>
             {
-                if (!(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
-                        .IsMasterCardPlaying) &&
-                    !(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
-                        .IsNonMasterCardPlaying) &&
-                    !(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
-                        .IsSenderActionInProgress) &&
-                    !(bool)await GameProperties.GetCustomPropertyValueAsync(ConfigConstants.CustomPropertyKey
-                        .IsReceiverActionInProgress))
+                if (CanPutActionButton())
                 {
-                    if (CanPutActionButton())
-                    {
-                        GameProperties.SetCustomPropertyValue(
-                            ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
-                        GameProperties.SetCustomPropertyValue(
-                            ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
-                        PushWrongButton();
-                        return;
-                    }
-
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsMasterCardPlaying, true);
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying,
-                        true);
-                    int cardDataNum;
-                    int figureNum = UnityEngine.Random.Range(0, PlayerDeckNum);
-                    int[] figureData = _playerDeckData[figureNum];
-                    int[] cnNums = { 0, 0 };
-                    DecideTableNumber();
-                    if (_playerCards[_tableNumberToPlace] != null)
-                    {
-                        if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Exchange)
+                    PhotonNetwork.CurrentRoom.SetCustomProperties(
+                        new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsWrongPlayingKey], PhotonNetwork.LocalPlayer.ActorNumber } },
+                        new Hashtable()
                         {
-                            photonView.RPC(nameof(ApplyExchangeToMyCards), RpcTarget.Others,
-                                _playerCards[_tableNumberToPlace].ColorArgs[0],
-                                _playerCards[_tableNumberToPlace].ColorArgs[1]);
+                            { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], 0 },
+                            { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsWrongPlayingKey], 0 },
+                            { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], 0 }
                         }
-                        else if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Remove)
-                        {
-                            _removeIndex = null;
-                        }
-
-                        Destroy(_playerCards[_tableNumberToPlace].gameObject);
-                    }
-
-                    ExceptCardData(ConfigConstants.CardEffect.Exchange, false);
-                    ExceptCardData(ConfigConstants.CardEffect.Substitute, true);
-                    ExceptCardData(ConfigConstants.CardEffect.Remove, true);
-                    cardDataNum = DecideCardDataNumber();
-                    if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
-                        _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
-                    {
-                        List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
-                        cnNums[0] = UnityEngine.Random.Range(0, 3);
-                        colorIndexes.RemoveAt(cnNums[0]);
-                        cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
-                    }
-                    else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
-                    {
-                        cnNums[0] = UnityEngine.Random.Range(0, 3);
-                    }
-
-                    (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
-                        GenerateCard(cardDataNum, figureData, cnNums, true);
-                    int tableNumber = _tableNumberToPlace;
-                    Card card = _playerCards[tableNumber];
-                    Card[] enemyExchangeCards = _enemyCards
-                        .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
-                        .Where(item => item.EnemyCard != null)
-                        .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
-                        .Select(item => item.EnemyCard)
-                        .ToArray();
-                    foreach (var enemyExchangeCard in enemyExchangeCards)
-                    {
-                        card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
-                    }
-
-                    if (_playerCardData[tableNumber].Effect == ConfigConstants.CardEffect.Remove)
-                    {
-                        _removeIndex = new[]
-                        {
-                            _playerCards[tableNumber].ShapeNum,
-                            1,
-                            tableNumber
-                        };
-                    }
-
-                    card.OnClickCard
-                        .Subscribe(delta => OnReceiveCardAction(delta, card, tableNumber))
-                        .AddTo(card);
-                    _playerTables[tableNumber].SetCardPos(card);
-                    _playerPlayedData.Add(new int[] { tableNumber, figureData[0], figureData[1] });
-                    if (PlayerDeckNum > 0)
-                    {
-                        PlayerDeckNum--;
-                    }
-                    else
-                    {
-                        throw new Exception("Deck Empty");
-                    }
-
-                    _playerDeckData.Remove(figureData);
-                    photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
-                        tableNumber);
-                    TurnManager.Instance.SetIsMyTurn(false);
+                    );
+                    return;
                 }
+
+                PhotonNetwork.CurrentRoom.SetCustomProperties(
+                    new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], PhotonNetwork.LocalPlayer.ActorNumber } },
+                    new Hashtable()
+                    {
+                        { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], 0 },
+                        { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsWrongPlayingKey], 0 },
+                        { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], 0 }
+                    }
+                );
             });
+    }
+
+    public void PlayCard()
+    {
+        int cardDataNum;
+                int figureNum = UnityEngine.Random.Range(0, PlayerDeckNum);
+                int[] figureData = _playerDeckData[figureNum];
+                int[] cnNums = { 0, 0 };
+                DecideTableNumber();
+                if (_playerCards[_tableNumberToPlace] != null)
+                {
+                    if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Exchange)
+                    {
+                        photonView.RPC(nameof(ApplyExchangeToMyCards), RpcTarget.Others,
+                            _playerCards[_tableNumberToPlace].ColorArgs[0],
+                            _playerCards[_tableNumberToPlace].ColorArgs[1]);
+                    }
+                    else if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Remove)
+                    {
+                        _removeIndex = null;
+                    }
+
+                    Destroy(_playerCards[_tableNumberToPlace].gameObject);
+                }
+
+                ExceptCardData(ConfigConstants.CardEffect.Exchange, false);
+                ExceptCardData(ConfigConstants.CardEffect.Substitute, true);
+                ExceptCardData(ConfigConstants.CardEffect.Remove, true);
+                cardDataNum = DecideCardDataNumber();
+                if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Exchange ||
+                    _cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Substitute)
+                {
+                    List<int> colorIndexes = new List<int>(3) { 0, 1, 2 };
+                    cnNums[0] = UnityEngine.Random.Range(0, 3);
+                    colorIndexes.RemoveAt(cnNums[0]);
+                    cnNums[1] = colorIndexes[UnityEngine.Random.Range(0, 2)];
+                }
+                else if (_cardData[cardDataNum].Effect == ConfigConstants.CardEffect.Illusion)
+                {
+                    cnNums[0] = UnityEngine.Random.Range(0, 3);
+                }
+
+                (_playerCards[_tableNumberToPlace], _playerCardData[_tableNumberToPlace]) =
+                    GenerateCard(cardDataNum, figureData, cnNums, _tableNumberToPlace, true);
+                Card card = _playerCards[_tableNumberToPlace];
+                Card[] enemyExchangeCards = _enemyCards
+                    .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
+                    .Where(item => item.EnemyCard != null)
+                    .Where(item => _enemyCardData[item.Index].Effect == ConfigConstants.CardEffect.Exchange)
+                    .Select(item => item.EnemyCard)
+                    .ToArray();
+                foreach (var enemyExchangeCard in enemyExchangeCards)
+                {
+                    card.ExchangeButton(enemyExchangeCard.ColorArgs[0], enemyExchangeCard.ColorArgs[1]);
+                }
+
+                if (_playerCardData[_tableNumberToPlace].Effect == ConfigConstants.CardEffect.Remove)
+                {
+                    _removeIndex = new[]
+                    {
+                        _playerCards[_tableNumberToPlace].ShapeNum,
+                        1,
+                        _tableNumberToPlace
+                    };
+                }
+
+                _playerTables[_tableNumberToPlace].SetCardPos(card);
+                _playerPlayedData.Add(new int[] { _tableNumberToPlace, figureData[0], figureData[1] });
+                if (PlayerDeckNum > 0)
+                {
+                    PlayerDeckNum--;
+                }
+                else
+                {
+                    throw new Exception("Deck Empty");
+                }
+
+                _playerDeckData.Remove(figureData);
+                photonView.RPC(nameof(PlayEnemyCard), RpcTarget.Others, cardDataNum, figureData, cnNums,
+                    _tableNumberToPlace);
+                TurnManager.Instance.SetIsMyTurn(false);
+    }
+
+    public async void PlayWrongly()
+    {
+        PushWrongButton();
+        // 美しくない
+        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+        PhotonNetwork.CurrentRoom.SetCustomProperties(
+            new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsWrongPlayingKey], 0 } }
+        );
     }
 
     private void DealCardsToPlayers()
@@ -276,20 +289,23 @@ public class CardManager : MonoBehaviourPunCallbacks
         return false;
     }
 
-    private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums, bool isMyCard)
+    private (Card, CardData) GenerateCard(int cardDataNum, int[] figureData, int[] cnNums, int tableNumber, bool isMyCard)
     {
         Sprite shape = _cardShapes[figureData[0]];
         Color32 color = DictionaryConstants.FigureColors[figureData[1]];
         Card card = Instantiate(_cardPrefab);
         CardData cardData = _cardData[cardDataNum];
-        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, isMyCard, cardData.Effect,
+        card.Initialize(figureData[0], figureData[1], new int[] { cnNums[0], cnNums[1] }, tableNumber, isMyCard, cardData.Effect,
             _playerDeck, _enemyDeck);
         card.SetCard(cardData, shape, color, cnNums);
         return (card, cardData);
     }
 
-    private void OnReceiveCardAction(Vector2 delta, Card card, int index)
+    public void OnReceiveCardAction()
     {
+        int index = PointedTableNumber;
+        Card card = _playerCards[index];
+        Vector2 delta = card.Delta;
         Debug.Log($"Clicked Card Index: {index}");
         Dictionary<int, Card> enemyCorrespondingCardsDict = _enemyCards
             .Select((enemyCard, cardIndex) => new { Index = cardIndex, EnemyCard = enemyCard })
@@ -687,10 +703,9 @@ public class CardManager : MonoBehaviourPunCallbacks
         Array.Clear(_enemyCardData, 0, _enemyCardData.Length);
         // 美しくない
         await UniTask.Delay(TimeSpan.FromSeconds(2f));
-        GameProperties.SetCustomPropertyValue(
-            TurnManager.Instance.IsMasterClient
-                ? ConfigConstants.CustomPropertyKey.IsMasterCardPlaying
-                : ConfigConstants.CustomPropertyKey.IsNonMasterCardPlaying, false);
+        PhotonNetwork.CurrentRoom.SetCustomProperties(
+            new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], 0 } }
+        );
     }
 
     private void CheckExistsWinner()
@@ -751,7 +766,7 @@ public class CardManager : MonoBehaviourPunCallbacks
             Destroy(_enemyCards[tableNum].gameObject);
         }
 
-        (_enemyCards[tableNum], _enemyCardData[tableNum]) = GenerateCard(cardDataNum, figureData, cnNums, false);
+        (_enemyCards[tableNum], _enemyCardData[tableNum]) = GenerateCard(cardDataNum, figureData, cnNums, tableNum, false);
         _enemyTables[tableNum].SetCardPos(_enemyCards[tableNum]);
         if (_enemyCardData[tableNum].Effect == ConfigConstants.CardEffect.Exchange)
         {
@@ -812,7 +827,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                 .OnComplete(() => { Destroy(cardGameObject); });
             if (figureData.Any(x => x != DictionaryConstants.ByteMax))
             {
-                (_playerCards[i], _playerCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, true);
+                (_playerCards[i], _playerCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, i, true);
                 Card card = _playerCards[i];
                 Card[] enemyExchangeCards = _enemyCards
                     .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
@@ -835,9 +850,6 @@ public class CardManager : MonoBehaviourPunCallbacks
                     };
                 }
 
-                card.OnClickCard
-                    .Subscribe(delta => OnReceiveCardAction(delta, card, i))
-                    .AddTo(card);
                 _playerTables[i].SetCardPos(card);
             }
             else
@@ -877,7 +889,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                 .OnComplete(() => { Destroy(cardGameObject); });
             if (figureData.Any(x => x != DictionaryConstants.ByteMax))
             {
-                (_enemyCards[i], _enemyCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, false);
+                (_enemyCards[i], _enemyCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, i, false);
                 _enemyTables[i].SetCardPos(_enemyCards[i]);
                 if (_enemyCardData[i].Effect == ConfigConstants.CardEffect.Exchange)
                 {
@@ -921,7 +933,9 @@ public class CardManager : MonoBehaviourPunCallbacks
         CheckExistsWinner();
         // 美しくない
         await UniTask.Delay(TimeSpan.FromSeconds(1f));
-        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, false);
+        PhotonNetwork.CurrentRoom.SetCustomProperties(
+            new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], 0 } }
+        );
     }
 
     [PunRPC]
@@ -963,7 +977,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                 .OnComplete(() => { Destroy(cardGameObject); });
             if (figureData.Any(x => x != DictionaryConstants.ByteMax))
             {
-                (_playerCards[i], _playerCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, true);
+                (_playerCards[i], _playerCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, i, true);
                 Card card = _playerCards[i];
                 Card[] enemyExchangeCards = _enemyCards
                     .Select((enemyCard, index) => new { Index = index, EnemyCard = enemyCard })
@@ -986,9 +1000,6 @@ public class CardManager : MonoBehaviourPunCallbacks
                     };
                 }
 
-                card.OnClickCard
-                    .Subscribe(delta => OnReceiveCardAction(delta, card, i))
-                    .AddTo(card);
                 _playerTables[i].SetCardPos(card);
             }
             else
@@ -1028,7 +1039,7 @@ public class CardManager : MonoBehaviourPunCallbacks
                 .OnComplete(() => { Destroy(cardGameObject); });
             if (figureData.Any(x => x != DictionaryConstants.ByteMax))
             {
-                (_enemyCards[i], _enemyCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, false);
+                (_enemyCards[i], _enemyCardData[i]) = GenerateCard(cardDataNum, figureData, cnNums, i, false);
                 _enemyTables[i].SetCardPos(_enemyCards[i]);
                 if (_enemyCardData[i].Effect == ConfigConstants.CardEffect.Exchange)
                 {
@@ -1072,6 +1083,8 @@ public class CardManager : MonoBehaviourPunCallbacks
         CheckExistsWinner();
         // 美しくない
         await UniTask.Delay(TimeSpan.FromSeconds(1f));
-        GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, false);
+        PhotonNetwork.CurrentRoom.SetCustomProperties(
+            new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], 0 } }
+        );
     }
 }

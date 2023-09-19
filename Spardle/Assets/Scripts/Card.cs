@@ -2,6 +2,8 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using ExitGames.Client.Photon;
+using Photon.Pun;
 using UniRx;
 using UniRx.Triggers;
 using UnityEngine.EventSystems;
@@ -26,12 +28,15 @@ public class Card : MonoBehaviour, IPointerDownHandler
     public int ColorNum => _colorNum;
     private int[] _colorArgs;
     public int[] ColorArgs => _colorArgs;
+    private int _tableNumber;
     private bool _isClickedCard;
     private Vector2 _clickStartPosition;
+    public Subject<Vector2> OnClickCard => _onClickCard;
     private Subject<Vector2> _onClickCard = new Subject<Vector2>();
     private Subject<Unit> _onClicking = new Subject<Unit>();
 
-    public IObservable<Vector2> OnClickCard => _onClickCard;
+    public Vector2 Delta;
+    // public IObservable<Vector2> OnClickCard => _onClickCard;
     public IObservable<Unit> OnClicking => _onClicking;
 
     // デバッグ用
@@ -40,11 +45,12 @@ public class Card : MonoBehaviour, IPointerDownHandler
         Debug.Log($"ShapeNum: {_shapeNum}\nColorNum: {_colorNum}\nColorArgs: {_colorArgs[0]}, {_colorArgs[1]}\nCardEffect: {_cardEffect}");
     }
 
-    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, bool isMyCard, ConfigConstants.CardEffect cardEffect, Deck playerDeck, Deck enemyDeck)
+    public void Initialize(int shapeNum, int colorNum, int[] colorArgs, int tableNumber, bool isMyCard, ConfigConstants.CardEffect cardEffect, Deck playerDeck, Deck enemyDeck)
     {
         _shapeNum = shapeNum;
         _colorNum = colorNum;
         _colorArgs = colorArgs;
+        _tableNumber = tableNumber;
         _isMyCard = isMyCard;
         _cardEffect = cardEffect;
         _playerDeck = playerDeck;
@@ -58,20 +64,19 @@ public class Card : MonoBehaviour, IPointerDownHandler
             this.OnMouseUpAsObservable()
                 .Where(_ => _isMyCard)
                 .Where(_ => _isClickedCard)
-                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                    .IsMasterCardPlaying))
-                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                    .IsNonMasterCardPlaying))
-                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                    .IsSenderActionInProgress))
-                .Where(_ => !(bool)GameProperties.GetCustomPropertyValue(ConfigConstants.CustomPropertyKey
-                    .IsReceiverActionInProgress))
                 .Select(_ => new Vector2(Input.mousePosition.x, Input.mousePosition.y))
                 .Subscribe(clickEndPosition =>
                 {
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsSenderActionInProgress, true);
-                    GameProperties.SetCustomPropertyValue(ConfigConstants.CustomPropertyKey.IsReceiverActionInProgress, true);
-                    _onClickCard.OnNext(clickEndPosition - _clickStartPosition);
+                    PhotonNetwork.CurrentRoom.SetCustomProperties(
+                        new Hashtable() { { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], PhotonNetwork.LocalPlayer.ActorNumber } },
+                        new Hashtable()
+                        {
+                            { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsCardPlayingKey], 0 },
+                            { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsWrongPlayingKey], 0 },
+                            { DictionaryConstants.CustomPropertyKeysString[(int)ConfigConstants.CustomPropertyKey.IsActionInProgressKey], 0 }
+                        }
+                    );
+                    Delta = clickEndPosition - _clickStartPosition;
                     _isClickedCard = false;
                     _actionButton.SetActive(false);
                 });
@@ -107,6 +112,7 @@ public class Card : MonoBehaviour, IPointerDownHandler
             _actionButton.transform.position = new Vector3(Camera.main.ScreenToWorldPoint(_clickStartPosition).x, Camera.main.ScreenToWorldPoint(_clickStartPosition).y, 0);
             _actionButton.GetComponent<ActionButton>().SetButtonPosition(_buttonColors);
             _onClicking.OnNext(Unit.Default);
+            CardManager.Instance.PointedTableNumber = _tableNumber;
         }
     }
 

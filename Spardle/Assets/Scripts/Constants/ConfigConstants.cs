@@ -24,9 +24,8 @@ public static class ConfigConstants
     public enum CustomPropertyKey
     {
         IsMasterClientTurnKey,
-        IsMasterCardPlaying,
-        IsNonMasterCardPlaying,
-        IsSenderActionInProgress,
-        IsReceiverActionInProgress
+        IsCardPlayingKey,
+        IsWrongPlayingKey,
+        IsActionInProgressKey
     }
 }
