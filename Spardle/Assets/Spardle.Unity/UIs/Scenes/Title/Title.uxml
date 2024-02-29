@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:danpany="Danpany.Unity.Scripts.UI.UIElements" editor-extension-mode="False">
+    <ui:Style src="../../Global.uss" />
+    <ui:Style src="./Title.uss" />
+    <danpany:SafeArea class="scenes-title">
+        <ui:Label class="scenes-title__label" text="Spardle" />
+        <danpany:StandardButton name="connect-master-button" text="ConnectToMasterServer" />
+        <danpany:StandardButton name="matchmake-two-button" text="MatchmakeTwoPlayers" />
+    </danpany:SafeArea>
+</ui:UXML>

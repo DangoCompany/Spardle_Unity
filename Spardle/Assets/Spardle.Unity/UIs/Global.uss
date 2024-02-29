@@ -1,0 +1,15 @@
+/* 変数定義 */
+:root {
+    --font-regular: url("/Assets/Spardle.Unity/Fonts/PixelMplus12-Regular SDF.asset");
+    --font-bold: url("/Assets/Spardle.Unity/Fonts/PixelMplus12-Bold SDF.asset");
+    
+    --color-white: rgb(255, 255, 255);
+    
+    --color-background:rgb(0, 0, 0);
+}
+
+/* デフォルト設定 */
+Label {
+    -unity-font-definition: var(--font-bold);
+    color: var(--color-white);
+}

@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:danpany="Danpany.Unity.Scripts.UI.UIElements" editor-extension-mode="False">
+    <ui:Style src="../../Global.uss" />
+    <ui:Style src="./SceneLoading.uss" />
+    <danpany:SafeArea class="app-loading-scene-loading">
+        <ui:Label class="app-loading-scene-loading__label" text="NOW LOADING..." />
+    </danpany:SafeArea>
+</ui:UXML>

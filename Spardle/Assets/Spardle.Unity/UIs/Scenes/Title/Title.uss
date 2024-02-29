@@ -1,0 +1,3 @@
+.scenes-title {
+    flex: 1;
+}
